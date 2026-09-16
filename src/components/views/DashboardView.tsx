@@ -112,10 +112,10 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ onNavigatePage }) 
     creditCards: { totalLimit: 100000, totalUsed: 14200, available: 85800, utilization: 14, count: 1 },
     bills: { pendingAmount: 2249, settledAmount: 0, totalAmount: 2249, pendingCount: 2, totalCount: 2 },
     emis: { monthlyTotal: 4500, totalLoanAmount: 108000, count: 1 },
-    chits: { monthlyTotal: 15000, totalPool: 300000, totalPaid: 273495, remainingPool: 26505, count: 1 },
+    chits: { monthlyTotal: 15000, totalPool: 300000, totalPaid: 0, remainingPool: 300000, count: 1 },
     lending: { lentPending: 5000, borrowedPending: 0, pendingCount: 1 },
     salary: { monthlyExpected: 60000, actualReceivedThisMonth: 60000 },
-    commitments: { totalMonthlyCommitments: 35949, remainingDisposable: 24051 }
+    commitments: { totalMonthlyCommitments: 35949, remainingDisposable: 38251 }
   };
 
   const accounts = data?.accounts || [];
@@ -243,10 +243,15 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ onNavigatePage }) 
             </div>
           </div>
           <div style={{ fontFamily: 'var(--font-display)', fontSize: '1.45rem', fontWeight: 800, color: 'var(--text-primary)' }}>
-            {formatCurrency(balances.totalCashAndBank || balances.totalNetWorth, 'INR')}
+            {formatCurrency(balances.totalCashAndBank !== undefined ? balances.totalCashAndBank : 0, 'INR')}
           </div>
           <div style={{ fontSize: '0.74rem', color: 'var(--text-muted)', marginTop: '4px' }}>
-            Available across wallet & linked accounts
+            Available in cash wallet & bank accounts
+            {balances.totalCreditCardDue > 0 && (
+              <span style={{ display: 'block', fontSize: '0.7rem', color: 'var(--text-muted)', marginTop: '2px' }}>
+                Net (Cash & Bank - Cards): <strong style={{ color: balances.totalNetWorth >= 0 ? '#10b981' : '#f43f5e' }}>{formatCurrency(balances.totalNetWorth, 'INR')}</strong>
+              </span>
+            )}
           </div>
         </div>
 
