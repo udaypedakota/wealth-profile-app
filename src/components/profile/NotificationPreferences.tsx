@@ -13,14 +13,27 @@ import {
 } from 'lucide-react';
 
 interface NotificationPreferencesProps {
-  notifications: INotificationPreferences;
+  notifications?: INotificationPreferences;
   onUpdate: (notifications: INotificationPreferences) => Promise<void>;
 }
 
 export const NotificationPreferences: React.FC<NotificationPreferencesProps> = ({
-  notifications,
+  notifications: rawNotifications,
   onUpdate
 }) => {
+  const notifications: INotificationPreferences = rawNotifications || {
+    billReminders: true,
+    emiAlerts: true,
+    chitPayments: true,
+    creditCardDues: true,
+    upcomingPayments: true,
+    overduePayments: true,
+    budgetAlerts: true,
+    financialInsights: true,
+    emailNotifications: true,
+    smsNotifications: true,
+    pushNotifications: true
+  };
   const { success } = useToast();
 
   const handleToggle = async (key: keyof INotificationPreferences) => {

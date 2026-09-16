@@ -10,7 +10,7 @@ import {
   AccountItem,
   ProfileCompletionItem
 } from '../types/profile';
-import { ProfileService } from '../services/profileService';
+import { ProfileService, ensureValidProfile } from '../services/profileService';
 import { INITIAL_DEMO_PROFILE } from '../services/mockData';
 
 interface ProfileContextType {
@@ -45,7 +45,7 @@ export const ProfileProvider: React.FC<{ children: React.ReactNode }> = ({ child
   const refreshProfile = useCallback(async () => {
     try {
       const data = await ProfileService.getProfile();
-      setProfile(data);
+      setProfile(ensureValidProfile(data));
     } catch (err) {
       console.error('Failed to load profile:', err);
     } finally {
@@ -60,7 +60,7 @@ export const ProfileProvider: React.FC<{ children: React.ReactNode }> = ({ child
     const handleProfileSync = (event: Event) => {
       const customEv = event as CustomEvent<UserProfile>;
       if (customEv.detail) {
-        setProfile(customEv.detail);
+        setProfile(ensureValidProfile(customEv.detail));
       }
     };
 
@@ -140,12 +140,18 @@ export const ProfileProvider: React.FC<{ children: React.ReactNode }> = ({ child
 
   // Compute profile completion dynamic checklist and overall percentage
   const { completionPercentage, completionItems } = useMemo(() => {
+    const personal = profile?.personal || INITIAL_DEMO_PROFILE.personal;
+    const contact = profile?.contact || INITIAL_DEMO_PROFILE.contact;
+    const financial = profile?.financial || INITIAL_DEMO_PROFILE.financial;
+    const accounts = Array.isArray(profile?.accounts) ? profile.accounts : [];
+    const security = profile?.security || INITIAL_DEMO_PROFILE.security;
+
     const items: ProfileCompletionItem[] = [
       {
         id: 'avatar',
         title: 'Profile Picture',
         description: 'Upload high-resolution profile photo',
-        completed: Boolean(profile.personal.avatarUrl && profile.personal.avatarUrl.trim().length > 0),
+        completed: Boolean(personal?.avatarUrl && personal.avatarUrl.trim().length > 0),
         weight: 15,
         category: 'personal'
       },
@@ -154,11 +160,11 @@ export const ProfileProvider: React.FC<{ children: React.ReactNode }> = ({ child
         title: 'Personal Identity',
         description: 'Full name, username, DOB & bio description',
         completed: Boolean(
-          profile.personal.fullName &&
-          profile.personal.username &&
-          profile.personal.dateOfBirth &&
-          profile.personal.bio &&
-          profile.personal.bio.length > 10
+          personal?.fullName &&
+          personal?.username &&
+          personal?.dateOfBirth &&
+          personal?.bio &&
+          personal?.bio.length > 10
         ),
         weight: 15,
         category: 'personal'
@@ -167,7 +173,7 @@ export const ProfileProvider: React.FC<{ children: React.ReactNode }> = ({ child
         id: 'contact_info',
         title: 'Verified Contact Details',
         description: 'Primary email, mobile number & alternate phone',
-        completed: Boolean(profile.contact.email && profile.contact.mobile && profile.contact.altMobile),
+        completed: Boolean(contact?.email && contact?.mobile && contact?.altMobile),
         weight: 15,
         category: 'contact'
       },
@@ -176,10 +182,10 @@ export const ProfileProvider: React.FC<{ children: React.ReactNode }> = ({ child
         title: 'Residential Address',
         description: 'Street address, city, state and PIN/ZIP code',
         completed: Boolean(
-          profile.contact.address &&
-          profile.contact.city &&
-          profile.contact.state &&
-          profile.contact.zipCode
+          contact?.address &&
+          contact?.city &&
+          contact?.state &&
+          contact?.zipCode
         ),
         weight: 15,
         category: 'contact'
@@ -189,10 +195,10 @@ export const ProfileProvider: React.FC<{ children: React.ReactNode }> = ({ child
         title: 'Wealth & Budget Targets',
         description: 'Monthly income, budget limit & savings target',
         completed: Boolean(
-          profile.financial.monthlyIncome > 0 &&
-          profile.financial.monthlyBudget > 0 &&
-          profile.financial.savingsTarget > 0 &&
-          profile.financial.financialGoal
+          (financial?.monthlyIncome || 0) > 0 &&
+          (financial?.monthlyBudget || 0) > 0 &&
+          (financial?.savingsTarget || 0) > 0 &&
+          financial?.financialGoal
         ),
         weight: 15,
         category: 'financial'
@@ -201,7 +207,7 @@ export const ProfileProvider: React.FC<{ children: React.ReactNode }> = ({ child
         id: 'linked_accounts',
         title: 'Connected Accounts & Cards',
         description: 'Link at least 2 bank accounts or credit cards',
-        completed: profile.accounts.length >= 2,
+        completed: accounts.length >= 2,
         weight: 15,
         category: 'financial'
       },
@@ -209,7 +215,7 @@ export const ProfileProvider: React.FC<{ children: React.ReactNode }> = ({ child
         id: 'security_setup',
         title: 'Security & 2-Factor Auth',
         description: 'Security PIN configured and 2FA enabled',
-        completed: Boolean(profile.security.hasPin && profile.security.twoFactorAuth),
+        completed: Boolean(security?.hasPin && security?.twoFactorAuth),
         weight: 10,
         category: 'security'
       }

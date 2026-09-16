@@ -13,17 +13,57 @@ import { ApiClient } from './apiClient';
 
 const STORAGE_KEY = 'uday_wealth_user_profile';
 
+export function ensureValidProfile(raw?: Partial<UserProfile> | null): UserProfile {
+  if (!raw) return { ...INITIAL_DEMO_PROFILE };
+
+  return {
+    ...INITIAL_DEMO_PROFILE,
+    ...raw,
+    personal: {
+      ...INITIAL_DEMO_PROFILE.personal,
+      ...(raw.personal || {})
+    },
+    contact: {
+      ...INITIAL_DEMO_PROFILE.contact,
+      ...(raw.contact || {})
+    },
+    financial: {
+      ...INITIAL_DEMO_PROFILE.financial,
+      ...(raw.financial || {})
+    },
+    notifications: {
+      ...INITIAL_DEMO_PROFILE.notifications,
+      ...(raw.notifications || {})
+    },
+    appearance: {
+      ...INITIAL_DEMO_PROFILE.appearance,
+      ...(raw.appearance || {})
+    },
+    security: {
+      ...INITIAL_DEMO_PROFILE.security,
+      ...(raw.security || {}),
+      activeSessions: Array.isArray(raw.security?.activeSessions)
+        ? raw.security.activeSessions
+        : (INITIAL_DEMO_PROFILE.security?.activeSessions || [])
+    },
+    accounts: Array.isArray(raw.accounts)
+      ? raw.accounts
+      : (INITIAL_DEMO_PROFILE.accounts || [])
+  };
+}
+
 export class ProfileService {
   static async getProfile(): Promise<UserProfile> {
     try {
       const serverProfile = await ApiClient.getProfile();
-      if (serverProfile && serverProfile.personal) {
+      if (serverProfile && (serverProfile.personal || serverProfile.id)) {
+        const validated = ensureValidProfile(serverProfile);
         try {
-          localStorage.setItem(STORAGE_KEY, JSON.stringify(serverProfile));
+          localStorage.setItem(STORAGE_KEY, JSON.stringify(validated));
         } catch (e) {
           console.warn('LocalStorage quota warning:', e);
         }
-        return serverProfile;
+        return validated;
       }
     } catch {
       // Fallback to local
@@ -32,13 +72,13 @@ export class ProfileService {
     try {
       const stored = localStorage.getItem(STORAGE_KEY);
       if (stored) {
-        return JSON.parse(stored);
+        return ensureValidProfile(JSON.parse(stored));
       }
     } catch {
       // ignore
     }
 
-    return INITIAL_DEMO_PROFILE;
+    return { ...INITIAL_DEMO_PROFILE };
   }
 
   static async saveProfile(profile: UserProfile): Promise<UserProfile> {

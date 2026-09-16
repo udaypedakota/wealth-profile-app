@@ -16,11 +16,19 @@ import {
 } from 'lucide-react';
 
 interface SecurityCardProps {
-  security: SecurityPreferences;
+  security?: SecurityPreferences;
   onUpdate: (security: SecurityPreferences) => Promise<void>;
 }
 
-export const SecurityCard: React.FC<SecurityCardProps> = ({ security, onUpdate }) => {
+export const SecurityCard: React.FC<SecurityCardProps> = ({ security: rawSecurity, onUpdate }) => {
+  const security = rawSecurity || {
+    hasPin: false,
+    twoFactorAuth: false,
+    maskBalances: false,
+    maskAccountNumbers: true,
+    lastLogin: 'Never',
+    activeSessions: []
+  };
   const [isPinModalOpen, setIsPinModalOpen] = useState(false);
   const [isPasswordModalOpen, setIsPasswordModalOpen] = useState(false);
   const [pinInput, setPinInput] = useState('');

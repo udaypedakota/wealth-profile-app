@@ -389,19 +389,36 @@ class DatabaseManager {
       try {
         const col = this.mongoDb.collection(key);
         if (key === 'profile') {
+          let doc;
           if (isUday) {
-            const doc = await col.findOne({ $or: [{ id: 'uday_pedakota_01' }, { userId: 'user_uday_01' }] });
-            return doc || INITIAL_DATABASE.profile;
+            doc = await col.findOne({ $or: [{ id: 'uday_pedakota_01' }, { userId: 'user_uday_01' }] });
+          } else {
+            doc = await col.findOne({ userId });
           }
-          const doc = await col.findOne({ userId });
-          return doc || {
-            id: 'profile_' + userId,
-            userId,
-            personal: { fullName: 'MoneyMate Member', firstName: 'Member', lastName: '', bio: '', avatarUrl: '' },
-            contact: { email: '', mobile: '', city: 'India', country: 'India' },
-            financial: { currency: 'INR', currencySymbol: '₹', monthlyIncome: 50000, monthlyBudget: 25000, savingsTarget: 15000 },
-            appearance: { theme: 'dark', accentColor: 'emerald' },
-            tier: 'Private Wealth Member'
+          const base = INITIAL_DATABASE.profile;
+          if (!doc) {
+            return {
+              ...base,
+              id: 'profile_' + userId,
+              userId,
+              personal: { ...base.personal, fullName: 'MoneyMate Member', firstName: 'Member', lastName: '', bio: '', avatarUrl: '' },
+              contact: { ...base.contact, email: '', mobile: '', city: 'India', country: 'India' },
+              financial: { ...base.financial, currency: 'INR', currencySymbol: '₹', monthlyIncome: 50000, monthlyBudget: 25000, savingsTarget: 15000 },
+              appearance: { ...base.appearance, theme: 'dark', accentColor: 'emerald' },
+              tier: 'Private Wealth Member',
+              security: { ...base.security, hasPin: false, twoFactorAuth: false },
+              notifications: { ...base.notifications }
+            };
+          }
+          return {
+            ...base,
+            ...doc,
+            personal: { ...base.personal, ...(doc.personal || {}) },
+            contact: { ...base.contact, ...(doc.contact || {}) },
+            financial: { ...base.financial, ...(doc.financial || {}) },
+            appearance: { ...base.appearance, ...(doc.appearance || {}) },
+            security: { ...base.security, ...(doc.security || {}) },
+            notifications: { ...base.notifications, ...(doc.notifications || {}) }
           };
         }
 
@@ -414,16 +431,36 @@ class DatabaseManager {
 
     const db = this.readLocalDb();
     if (key === 'profile') {
-      if (isUday) return db.profile || INITIAL_DATABASE.profile;
-      if (db.profiles && db.profiles[userId]) return db.profiles[userId];
+      let doc;
+      if (isUday) {
+        doc = db.profile || INITIAL_DATABASE.profile;
+      } else if (db.profiles && db.profiles[userId]) {
+        doc = db.profiles[userId];
+      }
+      const base = INITIAL_DATABASE.profile;
+      if (!doc) {
+        return {
+          ...base,
+          id: 'profile_' + userId,
+          userId,
+          personal: { ...base.personal, fullName: 'MoneyMate Member', firstName: 'Member', lastName: '', bio: '', avatarUrl: '' },
+          contact: { ...base.contact, email: '', mobile: '', city: 'India', country: 'India' },
+          financial: { ...base.financial, currency: 'INR', currencySymbol: '₹', monthlyIncome: 50000, monthlyBudget: 25000, savingsTarget: 15000 },
+          appearance: { ...base.appearance, theme: 'dark', accentColor: 'emerald' },
+          tier: 'Private Wealth Member',
+          security: { ...base.security, hasPin: false, twoFactorAuth: false },
+          notifications: { ...base.notifications }
+        };
+      }
       return {
-        id: 'profile_' + userId,
-        userId,
-        personal: { fullName: 'MoneyMate Member', firstName: 'Member', lastName: '', bio: '', avatarUrl: '' },
-        contact: { email: '', mobile: '', city: 'India', country: 'India' },
-        financial: { currency: 'INR', currencySymbol: '₹', monthlyIncome: 50000, monthlyBudget: 25000, savingsTarget: 15000 },
-        appearance: { theme: 'dark', accentColor: 'emerald' },
-        tier: 'Private Wealth Member'
+        ...base,
+        ...doc,
+        personal: { ...base.personal, ...(doc.personal || {}) },
+        contact: { ...base.contact, ...(doc.contact || {}) },
+        financial: { ...base.financial, ...(doc.financial || {}) },
+        appearance: { ...base.appearance, ...(doc.appearance || {}) },
+        security: { ...base.security, ...(doc.security || {}) },
+        notifications: { ...base.notifications, ...(doc.notifications || {}) }
       };
     }
     const allItems = db[key] || INITIAL_DATABASE[key] || [];
@@ -652,6 +689,27 @@ class DatabaseManager {
         theme: 'dark',
         accentColor: 'emerald',
         defaultTab: 'dashboard'
+      },
+      security: {
+        hasPin: false,
+        twoFactorAuth: false,
+        maskBalances: false,
+        maskAccountNumbers: true,
+        lastLogin: 'Today',
+        activeSessions: []
+      },
+      notifications: {
+        billReminders: true,
+        emiAlerts: true,
+        chitPayments: true,
+        creditCardDues: true,
+        upcomingPayments: true,
+        overduePayments: true,
+        budgetAlerts: true,
+        financialInsights: true,
+        emailNotifications: true,
+        smsNotifications: true,
+        pushNotifications: true
       },
       tier: 'Private Wealth Member',
       updatedAt: new Date().toISOString()
