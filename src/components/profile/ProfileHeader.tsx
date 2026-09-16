@@ -81,8 +81,8 @@ export const ProfileHeader: React.FC<ProfileHeaderProps> = ({ onEditClick }) => 
             )}
 
             <div
+              className="profile-completeness-badge"
               style={{
-                marginLeft: 'auto',
                 display: 'inline-flex',
                 alignItems: 'center',
                 gap: '8px',

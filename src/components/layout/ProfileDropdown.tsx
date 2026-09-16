@@ -74,6 +74,7 @@ export const ProfileDropdown: React.FC<ProfileDropdownProps> = ({ onNavigateTab 
         </div>
         <ChevronDown
           size={16}
+          className="profile-trigger-chevron"
           style={{
             color: 'var(--text-muted)',
             transition: 'transform 200ms ease',

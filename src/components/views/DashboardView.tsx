@@ -115,23 +115,8 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ onNavigatePage }) 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
       {/* Sleek Glassmorphic Welcome Banner */}
-      <div
-        style={{
-          display: 'flex',
-          flexWrap: 'wrap',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          gap: '14px',
-          padding: '14px 20px',
-          background: 'var(--bg-glass-heavy)',
-          borderRadius: 'var(--radius-md)',
-          border: '1px solid var(--border-card)',
-          boxShadow: 'var(--shadow-card)',
-          position: 'relative',
-          overflow: 'hidden'
-        }}
-      >
-        <div style={{ zIndex: 1 }}>
+      <div className="dashboard-welcome-banner">
+        <div style={{ zIndex: 1, minWidth: 0, flex: '1 1 auto' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '4px' }}>
             <span
               style={{
@@ -173,10 +158,10 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ onNavigatePage }) 
         </div>
 
         {/* Quick Action Pill Buttons */}
-        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '10px', zIndex: 1 }}>
+        <div className="dashboard-quick-actions" style={{ zIndex: 1 }}>
           <button
             type="button"
-            className="btn"
+            className="btn welcome-action-btn"
             style={{
               background: 'linear-gradient(135deg, #ef4444 0%, #b91c1c 100%)',
               color: '#ffffff',
@@ -200,7 +185,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ onNavigatePage }) 
 
           <button
             type="button"
-            className="btn"
+            className="btn welcome-action-btn"
             style={{
               background: 'linear-gradient(135deg, #10b981 0%, #047857 100%)',
               color: '#ffffff',
@@ -320,7 +305,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ onNavigatePage }) 
       </div>
 
       {/* Quick Financial Highlights Ribbon (4 Modules) */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '10px' }}>
+      <div className="dashboard-ribbon-grid">
         <div
           className="premium-card glow-hover"
           style={{ padding: '10px 14px', cursor: 'pointer' }}

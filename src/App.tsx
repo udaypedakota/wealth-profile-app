@@ -109,10 +109,10 @@ const AppContent: React.FC = () => {
 
             <div className="app-breadcrumbs">
               <span className="breadcrumb-root">MoneyMate</span>
-              <ChevronRight size={14} color="var(--text-muted)" />
-              <span className="breadcrumb-active" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                <span>{pageInfo.emoji}</span>
-                <span>{pageInfo.title}</span>
+              <ChevronRight size={14} color="var(--text-muted)" className="breadcrumb-sep" />
+              <span className="breadcrumb-active breadcrumb-title-wrapper">
+                <span className="breadcrumb-emoji">{pageInfo.emoji}</span>
+                <span className="breadcrumb-title-text">{pageInfo.title}</span>
               </span>
             </div>
           </div>
