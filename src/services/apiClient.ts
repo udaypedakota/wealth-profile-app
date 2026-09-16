@@ -23,7 +23,42 @@ const DEFAULT_INITIAL_STATE = {
   transactions: [],
   bills: [],
   emis: [],
-  chits: [],
+  chits: [
+    {
+      id: 'chit_3l_01',
+      name: '3L Chit',
+      title: '3L Chit',
+      totalAmount: 300000,
+      totalPotValue: 300000,
+      durationMonths: 20,
+      monthlyAmount: 15000,
+      monthlySubscription: 15000,
+      startDate: '2026-09-16',
+      status: 'Active',
+      payments: [
+        { id: 'p_1', monthNumber: 1, monthName: 'November', amount: 15000, date: '2026-11-06' },
+        { id: 'p_2', monthNumber: 2, monthName: 'October', amount: 15000, date: '2026-10-07' },
+        { id: 'p_3', monthNumber: 3, monthName: 'September', amount: 15000, date: '2026-09-07' },
+        { id: 'p_4', monthNumber: 4, monthName: 'August', amount: 14935, date: '2026-08-09' },
+        { id: 'p_5', monthNumber: 5, monthName: 'July', amount: 14775, date: '2026-07-08' },
+        { id: 'p_6', monthNumber: 6, monthName: 'June', amount: 14625, date: '2026-06-07' },
+        { id: 'p_7', monthNumber: 7, monthName: 'May 2026', amount: 14475, date: '2026-05-05' },
+        { id: 'p_8', monthNumber: 8, monthName: 'Apr 2026', amount: 14275, date: '2026-04-05' },
+        { id: 'p_9', monthNumber: 9, monthName: 'Mar 2026', amount: 14075, date: '2026-03-05' },
+        { id: 'p_10', monthNumber: 10, monthName: 'Feb 2026', amount: 13700, date: '2026-02-05' },
+        { id: 'p_11', monthNumber: 11, monthName: 'Jan 2026', amount: 13290, date: '2026-01-05' },
+        { id: 'p_12', monthNumber: 12, monthName: 'Dec 2025', amount: 13100, date: '2025-12-05' },
+        { id: 'p_13', monthNumber: 13, monthName: 'Nov 2025', amount: 13000, date: '2025-11-05' },
+        { id: 'p_14', monthNumber: 14, monthName: 'Oct 2025', amount: 12850, date: '2025-10-05' },
+        { id: 'p_15', monthNumber: 15, monthName: 'Sep 2025', amount: 12700, date: '2025-09-05' },
+        { id: 'p_16', monthNumber: 16, monthName: 'Aug 2025', amount: 12650, date: '2025-08-05' },
+        { id: 'p_17', monthNumber: 17, monthName: 'Jul 2025', amount: 12550, date: '2025-07-05' },
+        { id: 'p_18', monthNumber: 18, monthName: 'Jun 2025', amount: 12500, date: '2025-06-05' },
+        { id: 'p_19', monthNumber: 19, monthName: 'May 2025', amount: 12500, date: '2025-05-05' },
+        { id: 'p_20', monthNumber: 20, monthName: 'Apr 2025', amount: 12495, date: '2025-04-05' }
+      ]
+    }
+  ],
   lending: [],
   accounts: [
     {
@@ -348,17 +383,74 @@ export class ApiClient {
   static async addChit(chit: any) {
     const res = await this.request('/chits', { method: 'POST', body: JSON.stringify(chit) });
     const current = getLocal<any[]>('chits', DEFAULT_INITIAL_STATE.chits);
-    const newChit = res || { ...chit, id: 'chit_' + Date.now(), status: 'Active' };
+    const newChit = res || {
+      ...chit,
+      id: 'chit_' + Date.now(),
+      status: 'Active',
+      payments: chit.payments || []
+    };
     current.unshift(newChit);
     setLocal('chits', current);
     window.dispatchEvent(new CustomEvent('moneymate_data_changed'));
     return newChit;
   }
 
+  static async updateChit(id: string, partial: any) {
+    const res = await this.request(`/chits/${id}`, { method: 'PUT', body: JSON.stringify(partial) });
+    const current = getLocal<any[]>('chits', DEFAULT_INITIAL_STATE.chits);
+    const updated = current.map((c) => (c.id === id ? { ...c, ...partial } : c));
+    setLocal('chits', updated);
+    window.dispatchEvent(new CustomEvent('moneymate_data_changed'));
+    return res || { ...partial, id };
+  }
+
   static async deleteChit(id: string) {
     await this.request(`/chits/${id}`, { method: 'DELETE' });
     const current = getLocal<any[]>('chits', DEFAULT_INITIAL_STATE.chits);
     setLocal('chits', current.filter((c) => c.id !== id));
+    window.dispatchEvent(new CustomEvent('moneymate_data_changed'));
+    return { success: true };
+  }
+
+  static async addChitPayment(chitId: string, payment: any) {
+    const res = await this.request(`/chits/${chitId}/payments`, {
+      method: 'POST',
+      body: JSON.stringify(payment)
+    });
+    const current = getLocal<any[]>('chits', DEFAULT_INITIAL_STATE.chits);
+    const newPayment = res?.payment || {
+      id: 'pay_' + Date.now(),
+      monthNumber: payment.monthNumber || 1,
+      monthName: payment.monthName,
+      amount: Number(payment.amount || 0),
+      date: payment.date || new Date().toISOString().split('T')[0],
+      notes: payment.notes || ''
+    };
+    const updated = current.map((c) => {
+      if (c.id === chitId) {
+        const payments = [newPayment, ...(c.payments || [])];
+        return { ...c, payments };
+      }
+      return c;
+    });
+    setLocal('chits', updated);
+    window.dispatchEvent(new CustomEvent('moneymate_data_changed'));
+    return res || { success: true, payment: newPayment };
+  }
+
+  static async deleteChitPayment(chitId: string, paymentId: string) {
+    await this.request(`/chits/${chitId}/payments/${paymentId}`, { method: 'DELETE' });
+    const current = getLocal<any[]>('chits', DEFAULT_INITIAL_STATE.chits);
+    const updated = current.map((c) => {
+      if (c.id === chitId) {
+        return {
+          ...c,
+          payments: (c.payments || []).filter((p: any) => p.id !== paymentId)
+        };
+      }
+      return c;
+    });
+    setLocal('chits', updated);
     window.dispatchEvent(new CustomEvent('moneymate_data_changed'));
     return { success: true };
   }

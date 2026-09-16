@@ -334,12 +334,71 @@ app.get('/api/chits', async (req, res) => {
 });
 
 app.post('/api/chits', async (req, res) => {
-  const newChit = await dbManager.addItem('chits', req.body);
+  const chitData = {
+    ...req.body,
+    payments: req.body.payments || []
+  };
+  const newChit = await dbManager.addItem('chits', chitData);
   res.status(201).json(newChit);
+});
+
+app.put('/api/chits/:id', async (req, res) => {
+  try {
+    const updated = await dbManager.updateItem('chits', req.params.id, req.body);
+    res.json(updated);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
 });
 
 app.delete('/api/chits/:id', async (req, res) => {
   res.json(await dbManager.deleteItem('chits', req.params.id));
+});
+
+// Add Chit Payment
+app.post('/api/chits/:id/payments', async (req, res) => {
+  try {
+    const chits = await dbManager.get('chits');
+    const chit = chits.find((c) => c.id === req.params.id);
+    if (!chit) {
+      return res.status(404).json({ error: 'Chit not found' });
+    }
+
+    const existingPayments = Array.isArray(chit.payments) ? chit.payments : [];
+    const newPayment = {
+      id: 'pay_' + Date.now() + '_' + Math.random().toString(36).substring(2, 6),
+      monthNumber: req.body.monthNumber || existingPayments.length + 1,
+      monthName: req.body.monthName || new Date().toLocaleString('en-IN', { month: 'long', year: 'numeric' }),
+      amount: Number(req.body.amount || 0),
+      date: req.body.date || new Date().toISOString().split('T')[0],
+      notes: req.body.notes || ''
+    };
+
+    const updatedPayments = [newPayment, ...existingPayments];
+    await dbManager.updateItem('chits', req.params.id, { payments: updatedPayments });
+
+    res.status(201).json({ success: true, payment: newPayment, payments: updatedPayments });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Delete Chit Payment
+app.delete('/api/chits/:id/payments/:paymentId', async (req, res) => {
+  try {
+    const chits = await dbManager.get('chits');
+    const chit = chits.find((c) => c.id === req.params.id);
+    if (!chit) {
+      return res.status(404).json({ error: 'Chit not found' });
+    }
+
+    const updatedPayments = (chit.payments || []).filter((p) => p.id !== req.params.paymentId);
+    await dbManager.updateItem('chits', req.params.id, { payments: updatedPayments });
+
+    res.json({ success: true, payments: updatedPayments });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
 });
 
 // Lending (Money Lent & Borrowed)

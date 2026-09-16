@@ -2571,3 +2571,52 @@ input, textarea, select {
   color: #3b82f6;
 }
 
+/* ==========================================================================
+   CHIT FUNDS & MONTHLY PAYMENTS LEDGER STYLING
+   ========================================================================== */
+.premium-table-container {
+  width: 100%;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  background: var(--bg-card);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-card);
+}
+
+.premium-table {
+  width: 100%;
+  border-collapse: collapse;
+  text-align: left;
+  font-size: 0.88rem;
+}
+
+.premium-table th {
+  padding: 12px 14px;
+  font-size: 0.74rem;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.premium-table td {
+  padding: 12px 14px;
+  vertical-align: middle;
+}
+
+.premium-table tbody tr {
+  transition: background 0.15s ease;
+}
+
+.premium-table tbody tr:hover {
+  background: rgba(99, 102, 241, 0.04);
+}
+
+@media (max-width: 640px) {
+  .premium-table th,
+  .premium-table td {
+    padding: 10px 10px;
+    font-size: 0.82rem;
+  }
+}
+
