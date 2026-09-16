@@ -3,6 +3,7 @@ import { ApiClient } from '../../services/apiClient';
 import { formatCurrency, formatDate } from '../../utils/formatters';
 import { useToast } from '../../context/ToastContext';
 import { QuickAddModal } from '../common/QuickAddModal';
+import { Modal } from '../common/Modal';
 import {
   Wallet,
   TrendingDown,
@@ -20,7 +21,8 @@ import {
   ShieldCheck,
   Receipt,
   HandCoins,
-  Landmark
+  Landmark,
+  Edit2
 } from 'lucide-react';
 
 interface DashboardViewProps {
@@ -32,6 +34,12 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ onNavigatePage }) 
   const [loading, setLoading] = useState(true);
   const [isQuickAddOpen, setIsQuickAddOpen] = useState(false);
   const [quickAddType, setQuickAddType] = useState<'debit' | 'credit'>('debit');
+
+  // Update Balances Modal State
+  const [isUpdateBalancesOpen, setIsUpdateBalancesOpen] = useState(false);
+  const [cashBalanceInput, setCashBalanceInput] = useState('');
+  const [bankBalanceInput, setBankBalanceInput] = useState('');
+  const [isSavingBalances, setIsSavingBalances] = useState(false);
 
   const { success, error } = useToast();
 
@@ -80,6 +88,39 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ onNavigatePage }) 
     }
   };
 
+  const handleOpenUpdateBalances = () => {
+    const accList = data?.accounts || [];
+    const cashAcc = accList.find((a: any) => a.type === 'cash');
+    const bankAcc = accList.find((a: any) => a.type === 'bank');
+    setCashBalanceInput(cashAcc?.balance !== undefined ? String(cashAcc.balance) : '0');
+    setBankBalanceInput(bankAcc?.balance !== undefined ? String(bankAcc.balance) : '0');
+    setIsUpdateBalancesOpen(true);
+  };
+
+  const handleSaveBalances = async (e: React.FormEvent) => {
+    e.preventDefault();
+    try {
+      setIsSavingBalances(true);
+      const accList = data?.accounts || [];
+      const cashAcc = accList.find((a: any) => a.type === 'cash') || { id: 'acc_cash_01' };
+      const bankAcc = accList.find((a: any) => a.type === 'bank') || { id: 'acc_bank_02' };
+
+      const cVal = parseFloat(cashBalanceInput) || 0;
+      const bVal = parseFloat(bankBalanceInput) || 0;
+
+      await ApiClient.updateAccount(cashAcc.id, { balance: cVal });
+      await ApiClient.updateAccount(bankAcc.id, { balance: bVal });
+
+      success('Balances Updated', `Cash in Hand: ₹${cVal.toLocaleString('en-IN')} | Bank: ₹${bVal.toLocaleString('en-IN')}`);
+      setIsUpdateBalancesOpen(false);
+      await loadDashboard();
+    } catch (err: any) {
+      error('Update Failed', err?.message || 'Could not update balances.');
+    } finally {
+      setIsSavingBalances(false);
+    }
+  };
+
   if (loading && !data) {
     return (
       <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
@@ -109,13 +150,13 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ onNavigatePage }) 
   };
 
   const sectionBreakdowns = data?.sectionBreakdowns || {
-    creditCards: { totalLimit: 100000, totalUsed: 14200, available: 85800, utilization: 14, count: 1 },
-    bills: { pendingAmount: 2249, settledAmount: 0, totalAmount: 2249, pendingCount: 2, totalCount: 2 },
-    emis: { monthlyTotal: 4500, totalLoanAmount: 108000, count: 1 },
-    chits: { monthlyTotal: 15000, totalPool: 300000, totalPaid: 0, remainingPool: 300000, count: 1 },
-    lending: { lentPending: 5000, borrowedPending: 0, pendingCount: 1 },
-    salary: { monthlyExpected: 60000, actualReceivedThisMonth: 60000 },
-    commitments: { totalMonthlyCommitments: 35949, remainingDisposable: 38251 }
+    creditCards: { totalLimit: 0, totalUsed: 0, available: 0, utilization: 0, count: 0 },
+    bills: { pendingAmount: 0, settledAmount: 0, totalAmount: 0, pendingCount: 0, totalCount: 0 },
+    emis: { monthlyTotal: 0, totalLoanAmount: 0, count: 0 },
+    chits: { monthlyTotal: 0, totalPool: 0, totalPaid: 0, remainingPool: 0, count: 0 },
+    lending: { lentPending: 0, borrowedPending: 0, pendingCount: 0 },
+    salary: { monthlyExpected: 0, actualReceivedThisMonth: 0 },
+    commitments: { totalMonthlyCommitments: 0, remainingDisposable: 0 }
   };
 
   const accounts = data?.accounts || [];
@@ -227,19 +268,42 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ onNavigatePage }) 
             <span style={{ fontSize: '0.7rem', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
               Total Liquid Cash & Bank
             </span>
-            <div
-              style={{
-                width: '28px',
-                height: '28px',
-                borderRadius: 'var(--radius-xs)',
-                background: 'rgba(16, 185, 129, 0.12)',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                color: '#10b981'
-              }}
-            >
-              <Wallet size={15} />
+            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+              <button
+                type="button"
+                onClick={handleOpenUpdateBalances}
+                style={{
+                  background: 'rgba(16, 185, 129, 0.1)',
+                  border: '1px solid rgba(16, 185, 129, 0.25)',
+                  color: '#10b981',
+                  borderRadius: 'var(--radius-xs)',
+                  padding: '2px 7px',
+                  fontSize: '0.68rem',
+                  fontWeight: 600,
+                  cursor: 'pointer',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '4px'
+                }}
+                title="Update Cash & Bank Balances"
+              >
+                <Edit2 size={10} />
+                <span>Edit</span>
+              </button>
+              <div
+                style={{
+                  width: '28px',
+                  height: '28px',
+                  borderRadius: 'var(--radius-xs)',
+                  background: 'rgba(16, 185, 129, 0.12)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  color: '#10b981'
+                }}
+              >
+                <Wallet size={15} />
+              </div>
             </div>
           </div>
           <div style={{ fontFamily: 'var(--font-display)', fontSize: '1.45rem', fontWeight: 800, color: 'var(--text-primary)' }}>
@@ -894,6 +958,68 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ onNavigatePage }) 
         onSuccess={loadDashboard}
         defaultType={quickAddType}
       />
+
+      {/* Update Cash & Bank Balances Modal */}
+      <Modal
+        isOpen={isUpdateBalancesOpen}
+        onClose={() => setIsUpdateBalancesOpen(false)}
+        title="Update Cash & Bank Balances"
+      >
+        <form onSubmit={handleSaveBalances} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+          <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)', margin: 0 }}>
+            Set your real cash in hand and savings bank balances. This updates your live MongoDB Atlas cloud database.
+          </p>
+
+          <div className="form-group">
+            <label className="form-label" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+              <Wallet size={14} color="#10b981" />
+              <span>Cash in Hand (Wallet) ₹</span>
+            </label>
+            <input
+              type="number"
+              step="any"
+              className="form-input"
+              placeholder="e.g. 5000"
+              value={cashBalanceInput}
+              onChange={(e) => setCashBalanceInput(e.target.value)}
+              required
+            />
+          </div>
+
+          <div className="form-group">
+            <label className="form-label" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+              <Building2 size={14} color="#0284c7" />
+              <span>Primary Bank Account Balance ₹</span>
+            </label>
+            <input
+              type="number"
+              step="any"
+              className="form-input"
+              placeholder="e.g. 25000"
+              value={bankBalanceInput}
+              onChange={(e) => setBankBalanceInput(e.target.value)}
+              required
+            />
+          </div>
+
+          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', marginTop: '10px' }}>
+            <button
+              type="button"
+              className="btn btn-secondary"
+              onClick={() => setIsUpdateBalancesOpen(false)}
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              className="btn btn-primary"
+              disabled={isSavingBalances}
+            >
+              {isSavingBalances ? 'Saving to Database...' : 'Save Balances'}
+            </button>
+          </div>
+        </form>
+      </Modal>
     </div>
   );
 };

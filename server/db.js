@@ -110,7 +110,7 @@ export const INITIAL_DATABASE = {
       type: 'cash',
       institution: 'Physical Wallet',
       maskedNumber: 'CASH-WALLET',
-      balance: 12500,
+      balance: 0,
       currency: 'INR',
       status: 'primary',
       cardColor: 'linear-gradient(135deg, #059669 0%, #064e3b 100%)'
@@ -121,7 +121,7 @@ export const INITIAL_DATABASE = {
       type: 'bank',
       institution: 'State Bank of India / HDFC',
       maskedNumber: '•••• 5732',
-      balance: 68400,
+      balance: 0,
       currency: 'INR',
       status: 'active',
       cardColor: 'linear-gradient(135deg, #0284c7 0%, #0369a1 100%)'
@@ -133,9 +133,9 @@ export const INITIAL_DATABASE = {
       institution: 'Bank Credit Line',
       maskedNumber: '•••• 1998',
       creditLimit: 100000,
-      usedAmount: 14200,
-      balance: -14200,
-      availableLimit: 85800,
+      usedAmount: 0,
+      balance: 0,
+      availableLimit: 100000,
       dueDate: '15th of every month',
       statementDate: '2nd of every month',
       currency: 'INR',
@@ -326,9 +326,9 @@ class DatabaseManager {
             institution: 'HDFC / Bank Credit Line',
             maskedNumber: '•••• 1998',
             creditLimit: 100000,
-            usedAmount: 14200,
-            balance: -14200,
-            availableLimit: 85800,
+            usedAmount: 0,
+            balance: 0,
+            availableLimit: 100000,
             dueDate: '15th of every month',
             statementDate: '2nd of every month',
             currency: 'INR',
@@ -340,7 +340,7 @@ class DatabaseManager {
         } else {
           await accountsCol.updateMany(
             { type: 'credit_card', creditLimit: { $exists: false } },
-            { $set: { creditLimit: 100000, usedAmount: 14200, availableLimit: 85800, dueDate: '15th of every month', statementDate: '2nd of every month' } }
+            { $set: { creditLimit: 100000, usedAmount: 0, availableLimit: 100000, dueDate: '15th of every month', statementDate: '2nd of every month' } }
           );
         }
         return;

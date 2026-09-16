@@ -255,7 +255,7 @@ export const IncomeView: React.FC = () => {
             <span>Income Streams & Capital Inflows</span>
           </h2>
           <p className="section-top-subtitle">
-            Total recorded income inflows: <strong style={{ color: '#10b981' }}>{formatCurrency(totalInflow || 85000, profile.financial?.currency || 'INR')}</strong>
+            Total recorded income inflows: <strong style={{ color: '#10b981' }}>{formatCurrency(totalInflow, profile.financial?.currency || 'INR')}</strong>
           </p>
         </div>
         <button type="button" className="btn btn-primary" onClick={() => setIsAddOpen(true)}>
@@ -273,7 +273,7 @@ export const IncomeView: React.FC = () => {
           <div style={{ fontSize: '1.05rem', fontWeight: 700, color: 'var(--text-primary)' }}>Monthly Salary Credit</div>
           <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)', margin: '4px 0 14px' }}>Primary Savings Bank Account</div>
           <div style={{ fontFamily: 'var(--font-display)', fontSize: '1.5rem', fontWeight: 800, color: '#10b981' }}>
-            {formatCurrency(85000, profile.financial?.currency || 'INR')}
+            {formatCurrency(profile.financial?.monthlyIncome || 0, profile.financial?.currency || 'INR')}
           </div>
         </div>
 
@@ -285,7 +285,7 @@ export const IncomeView: React.FC = () => {
           <div style={{ fontSize: '1.05rem', fontWeight: 700, color: 'var(--text-primary)' }}>Total Income Received</div>
           <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)', margin: '4px 0 14px' }}>{transactions.length} verified income transactions</div>
           <div style={{ fontFamily: 'var(--font-display)', fontSize: '1.5rem', fontWeight: 800, color: '#10b981' }}>
-            {formatCurrency(totalInflow || 85000, profile.financial?.currency || 'INR')}
+            {formatCurrency(totalInflow, profile.financial?.currency || 'INR')}
           </div>
         </div>
       </div>

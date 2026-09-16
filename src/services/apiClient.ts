@@ -82,9 +82,9 @@ const DEFAULT_INITIAL_STATE = {
       institution: 'HDFC / Bank Credit Line',
       maskedNumber: '•••• 1998',
       creditLimit: 100000,
-      usedAmount: 14200,
-      balance: -14200,
-      availableLimit: 85800,
+      usedAmount: 0,
+      balance: 0,
+      availableLimit: 100000,
       dueDate: '15th of every month',
       statementDate: '2nd of every month',
       currency: 'INR',
@@ -425,20 +425,46 @@ export class ApiClient {
     return res || { success: true, avatarUrl };
   }
 
-  // Dashboard Aggregates
+  // Dashboard Aggregates (100% Dynamic from Database & Synced Cache)
   static async getDashboard() {
     const res = await this.request('/dashboard');
-    if (res) return res;
+    if (res && res.balances && res.sectionBreakdowns) return res;
 
-    // Local computation fallback
-    const transactions = getLocal('transactions', DEFAULT_INITIAL_STATE.transactions);
-    const bills = getLocal('bills', DEFAULT_INITIAL_STATE.bills);
+    // Local dynamic computation fallback
+    const accounts = getLocal<any[]>('accounts', DEFAULT_INITIAL_STATE.accounts);
+    const transactions = getLocal<any[]>('transactions', []);
+    const bills = getLocal<any[]>('bills', []);
+    const emis = getLocal<any[]>('emis', []);
+    const chits = getLocal<any[]>('chits', []);
+    const lending = getLocal<any[]>('lending', []);
+    const profile = getLocal<any>('profile', {});
+
     const todayStr = new Date().toISOString().split('T')[0];
     const currentMonth = todayStr.substring(0, 7);
 
+    // 1. Accounts & Cards
+    let totalCashAndBank = 0;
+    let totalCreditLimit = 0;
+    let totalCreditUsed = 0;
+
+    accounts.forEach((acc: any) => {
+      if (acc.type === 'credit_card') {
+        const lim = Number(acc.creditLimit || acc.totalLimit || 0);
+        const used = Number(acc.usedAmount !== undefined ? acc.usedAmount : Math.abs(acc.balance || 0));
+        totalCreditLimit += lim;
+        totalCreditUsed += used;
+      } else {
+        totalCashAndBank += Number(acc.balance || 0);
+      }
+    });
+
+    const totalCreditAvailable = Math.max(0, totalCreditLimit - totalCreditUsed);
+    const creditUtilization = totalCreditLimit > 0 ? Math.round((totalCreditUsed / totalCreditLimit) * 100) : 0;
+
+    // 2. Transactions
     let todayExpense = 0;
     let thisMonthExpense = 0;
-    let thisMonthIncome = 85000;
+    let thisMonthIncome = 0;
 
     transactions.forEach((tx: any) => {
       const amt = Number(tx.amount || 0);
@@ -449,29 +475,121 @@ export class ApiClient {
       }
     });
 
+    // 3. Bills
+    let pendingBillsAmount = 0;
+    let settledBillsAmount = 0;
+    bills.forEach((b: any) => {
+      const amt = Number(b.amount || 0);
+      if (b.status === 'Settled' || b.isPaid) settledBillsAmount += amt;
+      else pendingBillsAmount += amt;
+    });
+
+    // 4. EMIs
+    let monthlyEmiTotal = 0;
+    let totalLoanAmount = 0;
+    emis.forEach((e: any) => {
+      const mEmi = Number(e.monthlyAmount || e.monthlyEmi || 0);
+      monthlyEmiTotal += mEmi;
+      const tLoan = Number(e.totalLoanAmount || (mEmi * (Number(e.totalTenures) || 24)));
+      totalLoanAmount += tLoan;
+    });
+
+    // 5. Chits
+    let monthlyChitsTotal = 0;
+    let totalChitPool = 0;
+    let totalChitPaid = 0;
+    chits.forEach((c: any) => {
+      const mChit = Number(c.monthlyAmount || c.monthlySubscription || 0);
+      monthlyChitsTotal += mChit;
+      totalChitPool += Number(c.totalAmount || c.totalPotValue || 0);
+      if (Array.isArray(c.payments)) {
+        totalChitPaid += c.payments.reduce((s: number, p: any) => s + (Number(p.amount) || 0), 0);
+      }
+    });
+    const remainingChitPool = Math.max(0, totalChitPool - totalChitPaid);
+
+    // 6. Lending
+    let moneyLentTotal = 0;
+    let moneyBorrowedTotal = 0;
+    lending.forEach((l: any) => {
+      const amt = Number(l.amount || 0);
+      if (l.status === 'Pending') {
+        if (l.type === 'lent') moneyLentTotal += amt;
+        if (l.type === 'borrowed') moneyBorrowedTotal += amt;
+      }
+    });
+
+    const monthlySalary = Number(profile.financial?.monthlyIncome || 0);
+    const totalMonthlyCommitments = monthlyEmiTotal + monthlyChitsTotal + pendingBillsAmount + totalCreditUsed;
+    const remainingDisposable = Math.max(0, monthlySalary - (monthlyEmiTotal + monthlyChitsTotal + pendingBillsAmount));
+
     return {
       user: {
-        fullName: 'Uday Pedakota',
-        firstName: 'Uday',
-        avatarUrl: '',
-        tier: 'Private Wealth Member'
+        fullName: profile?.personal?.fullName || 'Uday Pedakota',
+        firstName: profile?.personal?.firstName || 'Uday',
+        avatarUrl: profile?.personal?.avatarUrl || '',
+        tier: profile?.tier || 'Private Wealth Member'
       },
       balances: {
-        totalNetWorth: 80900 - 14200,
-        totalCashAndBank: 80900,
-        totalCreditCardDue: 14200,
+        totalNetWorth: totalCashAndBank - totalCreditUsed,
+        totalCashAndBank,
+        totalCreditCardDue: totalCreditUsed,
         todayExpense,
         thisMonthIncome,
         thisMonthExpense,
-        monthlyBudget: 35000,
-        currencySymbol: '₹'
+        monthlyIncome: monthlySalary,
+        monthlyBudget: profile?.financial?.monthlyBudget || 35000,
+        currencySymbol: profile?.financial?.currencySymbol || '₹'
       },
+      sectionBreakdowns: {
+        creditCards: {
+          totalLimit: totalCreditLimit,
+          totalUsed: totalCreditUsed,
+          available: totalCreditAvailable,
+          utilization: creditUtilization,
+          count: accounts.filter((a: any) => a.type === 'credit_card').length
+        },
+        bills: {
+          pendingAmount: pendingBillsAmount,
+          settledAmount: settledBillsAmount,
+          totalAmount: pendingBillsAmount + settledBillsAmount,
+          pendingCount: bills.filter((b: any) => b.status !== 'Settled').length,
+          totalCount: bills.length
+        },
+        emis: {
+          monthlyTotal: monthlyEmiTotal,
+          totalLoanAmount,
+          count: emis.length
+        },
+        chits: {
+          monthlyTotal: monthlyChitsTotal,
+          totalPool: totalChitPool,
+          totalPaid: totalChitPaid,
+          remainingPool: remainingChitPool,
+          count: chits.length
+        },
+        lending: {
+          lentPending: moneyLentTotal,
+          borrowedPending: moneyBorrowedTotal,
+          pendingCount: lending.filter((l: any) => l.status === 'Pending').length
+        },
+        salary: {
+          monthlyExpected: monthlySalary,
+          actualReceivedThisMonth: thisMonthIncome
+        },
+        commitments: {
+          totalMonthlyCommitments,
+          remainingDisposable
+        }
+      },
+      accounts,
       counts: {
         transactionsCount: transactions.length,
         activeBillsCount: bills.filter((b: any) => b.status !== 'Settled').length,
-        activeEmisCount: 1,
-        activeChitsCount: 1,
-        moneyLentPending: 1
+        activeEmisCount: emis.length,
+        activeChitsCount: chits.length,
+        creditCardsCount: accounts.filter((a: any) => a.type === 'credit_card').length,
+        moneyLentPending: lending.filter((l: any) => l.type === 'lent' && l.status === 'Pending').length
       },
       recentTransactions: transactions.slice(0, 8),
       upcomingBills: bills.filter((b: any) => b.status !== 'Settled').slice(0, 4)
