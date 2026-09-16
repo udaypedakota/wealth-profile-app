@@ -51,9 +51,9 @@ export const INITIAL_DATABASE = {
       currency: 'INR',
       currencySymbol: '₹',
       defaultAccountId: 'acc_cash_01',
-      monthlyIncome: 85000,
+      monthlyIncome: 60000,
       monthlyBudget: 35000,
-      savingsTarget: 30000,
+      savingsTarget: 25000,
       financialGoal: 'Long-Term Wealth Building & Systematic Savings',
       preferredPaymentMethod: 'UPI',
       riskAppetite: 'Moderate',
@@ -132,11 +132,16 @@ export const INITIAL_DATABASE = {
       type: 'credit_card',
       institution: 'Bank Credit Line',
       maskedNumber: '•••• 1998',
+      creditLimit: 100000,
+      usedAmount: 14200,
       balance: -14200,
+      availableLimit: 85800,
+      dueDate: '15th of every month',
+      statementDate: '2nd of every month',
       currency: 'INR',
       status: 'active',
       expiryDate: '03/29',
-      cardColor: 'linear-gradient(135deg, #374151 0%, #111827 100%)'
+      cardColor: 'linear-gradient(135deg, #1e1b4b 0%, #312e81 100%)'
     }
   ],
   transactions: [
@@ -144,7 +149,7 @@ export const INITIAL_DATABASE = {
       id: 'tx_1',
       title: 'Monthly Salary Credit',
       category: 'Salary',
-      amount: 85000,
+      amount: 60000,
       type: 'credit',
       account: 'Primary Savings Bank Account',
       date: new Date().toISOString().split('T')[0],
@@ -313,6 +318,51 @@ class DatabaseManager {
         if (chitCount === 0 && INITIAL_DATABASE.chits && INITIAL_DATABASE.chits.length > 0) {
           await chitsCol.insertMany(INITIAL_DATABASE.chits);
           console.log('✅ Seeded initial 3L Chit to MongoDB Atlas!');
+        }
+
+        // Ensure all collections are seeded if empty
+        for (const colName of ['accounts', 'bills', 'emis', 'lending', 'transactions']) {
+          const col = this.mongoDb.collection(colName);
+          const count = await col.countDocuments();
+          if (count === 0 && INITIAL_DATABASE[colName] && INITIAL_DATABASE[colName].length > 0) {
+            await col.insertMany(INITIAL_DATABASE[colName]);
+            console.log(`✅ Seeded initial ${colName} to MongoDB Atlas!`);
+          }
+        }
+
+        // Ensure profile monthlyIncome is set to 60000
+        await profileCol.updateOne(
+          { id: 'uday_pedakota_01' },
+          { $set: { 'financial.monthlyIncome': 60000 } }
+        );
+
+        // Ensure credit card accounts exist and have creditLimit, usedAmount, availableLimit
+        const accountsCol = this.mongoDb.collection('accounts');
+        const hasCard = await accountsCol.findOne({ type: 'credit_card' });
+        if (!hasCard) {
+          await accountsCol.insertOne({
+            id: 'acc_card_03',
+            name: 'Primary Credit Card',
+            type: 'credit_card',
+            institution: 'HDFC / Bank Credit Line',
+            maskedNumber: '•••• 1998',
+            creditLimit: 100000,
+            usedAmount: 14200,
+            balance: -14200,
+            availableLimit: 85800,
+            dueDate: '15th of every month',
+            statementDate: '2nd of every month',
+            currency: 'INR',
+            status: 'active',
+            expiryDate: '03/29',
+            cardColor: 'linear-gradient(135deg, #1e1b4b 0%, #312e81 100%)'
+          });
+          console.log('✅ Seeded initial Credit Card to MongoDB Atlas!');
+        } else {
+          await accountsCol.updateMany(
+            { type: 'credit_card', creditLimit: { $exists: false } },
+            { $set: { creditLimit: 100000, usedAmount: 14200, availableLimit: 85800, dueDate: '15th of every month', statementDate: '2nd of every month' } }
+          );
         }
         return;
       } catch (err) {

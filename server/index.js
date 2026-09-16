@@ -170,19 +170,73 @@ app.get('/api/dashboard', async (req, res) => {
 
     const todayStr = new Date().toISOString().split('T')[0];
 
-    // Net liquid balance (cash + bank balances)
+    // 1. Credit Cards & Bank Balances
     let totalCashAndBank = 0;
-    let totalCreditCardDue = 0;
+    let totalCreditLimit = 0;
+    let totalCreditUsed = 0;
 
     accounts.forEach((acc) => {
       if (acc.type === 'credit_card') {
-        totalCreditCardDue += Math.abs(acc.balance || 0);
+        const lim = Number(acc.creditLimit || acc.totalLimit || 0);
+        const used = Number(acc.usedAmount !== undefined ? acc.usedAmount : Math.abs(acc.balance || 0));
+        totalCreditLimit += lim;
+        totalCreditUsed += used;
       } else {
         totalCashAndBank += Number(acc.balance || 0);
       }
     });
 
-    // Today's expenses
+    const totalCreditAvailable = Math.max(0, totalCreditLimit - totalCreditUsed);
+    const creditUtilization = totalCreditLimit > 0 ? Math.round((totalCreditUsed / totalCreditLimit) * 100) : 0;
+
+    // 2. Bills
+    let pendingBillsAmount = 0;
+    let settledBillsAmount = 0;
+    bills.forEach((b) => {
+      const amt = Number(b.amount || 0);
+      if (b.status === 'Settled' || b.isPaid) {
+        settledBillsAmount += amt;
+      } else {
+        pendingBillsAmount += amt;
+      }
+    });
+
+    // 3. Loans & EMIs
+    let monthlyEmiTotal = 0;
+    let totalLoanAmount = 0;
+    emis.forEach((e) => {
+      const mEmi = Number(e.monthlyAmount || e.monthlyEmi || 0);
+      monthlyEmiTotal += mEmi;
+      const tLoan = Number(e.totalLoanAmount || (mEmi * (Number(e.totalTenures) || 24)));
+      totalLoanAmount += tLoan;
+    });
+
+    // 4. Chits
+    let monthlyChitsTotal = 0;
+    let totalChitPool = 0;
+    let totalChitPaid = 0;
+    chits.forEach((c) => {
+      const mChit = Number(c.monthlyAmount || c.monthlySubscription || 0);
+      monthlyChitsTotal += mChit;
+      totalChitPool += Number(c.totalAmount || c.totalPotValue || 0);
+      if (Array.isArray(c.payments)) {
+        totalChitPaid += c.payments.reduce((s, p) => s + (Number(p.amount) || 0), 0);
+      }
+    });
+    const remainingChitPool = Math.max(0, totalChitPool - totalChitPaid);
+
+    // 5. Lending & Hand Loans
+    let moneyLentTotal = 0;
+    let moneyBorrowedTotal = 0;
+    lending.forEach((l) => {
+      const amt = Number(l.amount || 0);
+      if (l.status === 'Pending') {
+        if (l.type === 'lent') moneyLentTotal += amt;
+        if (l.type === 'borrowed') moneyBorrowedTotal += amt;
+      }
+    });
+
+    // 6. Today's & Month's Cash Flow
     let todayExpense = 0;
     let thisMonthExpense = 0;
     let thisMonthIncome = 0;
@@ -202,22 +256,68 @@ app.get('/api/dashboard', async (req, res) => {
       }
     });
 
+    const monthlySalary = Number(profile.financial?.monthlyIncome || 60000);
+    const totalMonthlyCommitments = monthlyEmiTotal + monthlyChitsTotal + pendingBillsAmount + totalCreditUsed;
+    const remainingDisposable = Math.max(0, monthlySalary - (monthlyEmiTotal + monthlyChitsTotal + pendingBillsAmount));
+
     res.json({
       user: {
-        fullName: profile.personal.fullName,
-        firstName: profile.personal.firstName,
-        avatarUrl: profile.personal.avatarUrl,
-        tier: profile.tier
+        fullName: profile.personal?.fullName || 'Uday Pedakota',
+        firstName: profile.personal?.firstName || 'Uday',
+        avatarUrl: profile.personal?.avatarUrl || '',
+        tier: profile.tier || 'Private Wealth Member'
       },
       balances: {
-        totalNetWorth: totalCashAndBank - totalCreditCardDue,
+        totalNetWorth: totalCashAndBank - totalCreditUsed,
         totalCashAndBank,
-        totalCreditCardDue,
+        totalCreditCardDue: totalCreditUsed,
         todayExpense,
         thisMonthIncome,
         thisMonthExpense,
-        monthlyBudget: profile.financial.monthlyBudget,
-        currencySymbol: profile.financial.currencySymbol || '₹'
+        monthlyIncome: monthlySalary,
+        monthlyBudget: profile.financial?.monthlyBudget || 35000,
+        currencySymbol: profile.financial?.currencySymbol || '₹'
+      },
+      sectionBreakdowns: {
+        creditCards: {
+          totalLimit: totalCreditLimit,
+          totalUsed: totalCreditUsed,
+          available: totalCreditAvailable,
+          utilization: creditUtilization,
+          count: accounts.filter((a) => a.type === 'credit_card').length
+        },
+        bills: {
+          pendingAmount: pendingBillsAmount,
+          settledAmount: settledBillsAmount,
+          totalAmount: pendingBillsAmount + settledBillsAmount,
+          pendingCount: bills.filter((b) => b.status !== 'Settled').length,
+          totalCount: bills.length
+        },
+        emis: {
+          monthlyTotal: monthlyEmiTotal,
+          totalLoanAmount,
+          count: emis.length
+        },
+        chits: {
+          monthlyTotal: monthlyChitsTotal,
+          totalPool: totalChitPool,
+          totalPaid: totalChitPaid,
+          remainingPool: remainingChitPool,
+          count: chits.length
+        },
+        lending: {
+          lentPending: moneyLentTotal,
+          borrowedPending: moneyBorrowedTotal,
+          pendingCount: lending.filter((l) => l.status === 'Pending').length
+        },
+        salary: {
+          monthlyExpected: monthlySalary,
+          actualReceivedThisMonth: thisMonthIncome
+        },
+        commitments: {
+          totalMonthlyCommitments,
+          remainingDisposable
+        }
       },
       accounts,
       counts: {
@@ -225,6 +325,7 @@ app.get('/api/dashboard', async (req, res) => {
         activeBillsCount: bills.filter((b) => b.status !== 'Settled').length,
         activeEmisCount: emis.length,
         activeChitsCount: chits.length,
+        creditCardsCount: accounts.filter((a) => a.type === 'credit_card').length,
         moneyLentPending: lending.filter((l) => l.type === 'lent' && l.status === 'Pending').length
       },
       recentTransactions: transactions.slice(0, 8),

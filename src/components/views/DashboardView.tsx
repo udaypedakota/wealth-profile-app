@@ -108,6 +108,16 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ onNavigatePage }) 
     moneyLentPending: 0
   };
 
+  const sectionBreakdowns = data?.sectionBreakdowns || {
+    creditCards: { totalLimit: 100000, totalUsed: 14200, available: 85800, utilization: 14, count: 1 },
+    bills: { pendingAmount: 2249, settledAmount: 0, totalAmount: 2249, pendingCount: 2, totalCount: 2 },
+    emis: { monthlyTotal: 4500, totalLoanAmount: 108000, count: 1 },
+    chits: { monthlyTotal: 15000, totalPool: 300000, totalPaid: 273495, remainingPool: 26505, count: 1 },
+    lending: { lentPending: 5000, borrowedPending: 0, pendingCount: 1 },
+    salary: { monthlyExpected: 60000, actualReceivedThisMonth: 60000 },
+    commitments: { totalMonthlyCommitments: 35949, remainingDisposable: 24051 }
+  };
+
   const accounts = data?.accounts || [];
   const recentTransactions = data?.recentTransactions || [];
   const upcomingBills = data?.upcomingBills || [];
@@ -304,77 +314,315 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ onNavigatePage }) 
         </div>
       </div>
 
-      {/* Quick Financial Highlights Ribbon (4 Modules) */}
-      <div className="dashboard-ribbon-grid">
-        <div
-          className="premium-card glow-hover"
-          style={{ padding: '10px 14px', cursor: 'pointer' }}
-          onClick={() => onNavigatePage('bills')}
-        >
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)', fontWeight: 600, textTransform: 'uppercase' }}>Upcoming Bills</span>
-            <Receipt size={14} color="var(--primary)" />
+      {/* ==========================================================================
+          FINANCIAL SECTIONS & COMMITMENTS BREAKDOWN (Requested by User)
+          ========================================================================== */}
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '6px' }}>
+          <div>
+            <h3 style={{ fontSize: '1.05rem', fontWeight: 800, margin: 0, display: 'flex', alignItems: 'center', gap: '6px' }}>
+              <span>📊 Financial Sections & Usage Breakdown</span>
+            </h3>
+            <p style={{ fontSize: '0.78rem', color: 'var(--text-muted)', margin: '2px 0 0' }}>
+              Real-time balance, limit & commitment tracker across all your active financial modules
+            </p>
           </div>
-          <div style={{ fontSize: '1.05rem', fontWeight: 800, marginTop: '4px' }}>
-            {counts.activeBillsCount} Due
-          </div>
-          <div style={{ fontSize: '0.7rem', color: 'var(--primary)', marginTop: '3px', display: 'flex', alignItems: 'center', gap: '4px' }}>
-            <span>Manage Bills</span>
-            <ArrowRight size={11} />
-          </div>
+          <span
+            style={{
+              fontSize: '0.75rem',
+              fontWeight: 700,
+              color: 'var(--primary)',
+              background: 'rgba(99, 102, 241, 0.1)',
+              padding: '4px 10px',
+              borderRadius: 'var(--radius-full)',
+              border: '1px solid rgba(99, 102, 241, 0.2)'
+            }}
+          >
+            Monthly Salary: {formatCurrency(sectionBreakdowns.salary.monthlyExpected, 'INR')}
+          </span>
         </div>
 
         <div
-          className="premium-card glow-hover"
-          style={{ padding: '10px 14px', cursor: 'pointer' }}
-          onClick={() => onNavigatePage('emis')}
+          style={{
+            display: 'grid',
+            gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))',
+            gap: '12px'
+          }}
         >
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)', fontWeight: 600, textTransform: 'uppercase' }}>EMIs & Loans</span>
-            <Landmark size={14} color="#3b82f6" />
-          </div>
-          <div style={{ fontSize: '1.05rem', fontWeight: 800, marginTop: '4px' }}>
-            {counts.activeEmisCount} Active
-          </div>
-          <div style={{ fontSize: '0.7rem', color: '#3b82f6', marginTop: '3px', display: 'flex', alignItems: 'center', gap: '4px' }}>
-            <span>View Loans</span>
-            <ArrowRight size={11} />
-          </div>
-        </div>
+          {/* 1. Credit Cards & Lines */}
+          <div
+            className="premium-card glow-hover"
+            style={{ padding: '14px 16px', cursor: 'pointer', position: 'relative', overflow: 'hidden' }}
+            onClick={() => onNavigatePage('credit_cards')}
+          >
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+              <div>
+                <span style={{ fontSize: '0.7rem', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase' }}>
+                  Credit Cards ({sectionBreakdowns.creditCards.count || 1} Linked)
+                </span>
+                <div style={{ display: 'flex', alignItems: 'baseline', gap: '6px', marginTop: '4px' }}>
+                  <span style={{ fontFamily: 'var(--font-display)', fontSize: '1.25rem', fontWeight: 800, color: '#f43f5e' }}>
+                    {formatCurrency(sectionBreakdowns.creditCards.totalUsed, 'INR')}
+                  </span>
+                  <span style={{ fontSize: '0.76rem', color: 'var(--text-muted)' }}>
+                    used of {formatCurrency(sectionBreakdowns.creditCards.totalLimit, 'INR')}
+                  </span>
+                </div>
+              </div>
+              <span
+                className={`badge-status ${sectionBreakdowns.creditCards.utilization <= 30 ? 'success' : 'warning'}`}
+                style={{ fontSize: '0.68rem', padding: '2px 6px' }}
+              >
+                {sectionBreakdowns.creditCards.utilization}% Used
+              </span>
+            </div>
 
-        <div
-          className="premium-card glow-hover"
-          style={{ padding: '10px 14px', cursor: 'pointer' }}
-          onClick={() => onNavigatePage('chits')}
-        >
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)', fontWeight: 600, textTransform: 'uppercase' }}>Chit Funds</span>
-            <Sparkles size={14} color="#f59e0b" />
-          </div>
-          <div style={{ fontSize: '1.05rem', fontWeight: 800, marginTop: '4px' }}>
-            {counts.activeChitsCount} Active
-          </div>
-          <div style={{ fontSize: '0.7rem', color: '#f59e0b', marginTop: '3px', display: 'flex', alignItems: 'center', gap: '4px' }}>
-            <span>Chit Ledger</span>
-            <ArrowRight size={11} />
-          </div>
-        </div>
+            {/* Utilization Bar */}
+            <div
+              style={{
+                width: '100%',
+                height: '4px',
+                borderRadius: 'var(--radius-full)',
+                background: 'var(--border-subtle)',
+                margin: '10px 0 6px',
+                overflow: 'hidden'
+              }}
+            >
+              <div
+                style={{
+                  width: `${Math.min(100, sectionBreakdowns.creditCards.utilization)}%`,
+                  height: '100%',
+                  background: sectionBreakdowns.creditCards.utilization <= 30 ? '#10b981' : '#f59e0b'
+                }}
+              />
+            </div>
 
-        <div
-          className="premium-card glow-hover"
-          style={{ padding: '10px 14px', cursor: 'pointer' }}
-          onClick={() => onNavigatePage('money_lent')}
-        >
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)', fontWeight: 600, textTransform: 'uppercase' }}>Money Lent</span>
-            <HandCoins size={14} color="#10b981" />
+            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.72rem', color: 'var(--text-muted)' }}>
+              <span>Available: <strong style={{ color: '#10b981' }}>{formatCurrency(sectionBreakdowns.creditCards.available, 'INR')}</strong></span>
+              <span style={{ color: 'var(--primary)', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '2px' }}>
+                Manage Cards <ArrowRight size={11} />
+              </span>
+            </div>
           </div>
-          <div style={{ fontSize: '1.05rem', fontWeight: 800, marginTop: '4px' }}>
-            {counts.moneyLentPending} Pending
+
+          {/* 2. Bills & Utilities */}
+          <div
+            className="premium-card glow-hover"
+            style={{ padding: '14px 16px', cursor: 'pointer' }}
+            onClick={() => onNavigatePage('bills')}
+          >
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+              <div>
+                <span style={{ fontSize: '0.7rem', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase' }}>
+                  Pending Bills ({sectionBreakdowns.bills.pendingCount} Due)
+                </span>
+                <div style={{ display: 'flex', alignItems: 'baseline', gap: '6px', marginTop: '4px' }}>
+                  <span style={{ fontFamily: 'var(--font-display)', fontSize: '1.25rem', fontWeight: 800, color: '#f59e0b' }}>
+                    {formatCurrency(sectionBreakdowns.bills.pendingAmount, 'INR')}
+                  </span>
+                  <span style={{ fontSize: '0.76rem', color: 'var(--text-muted)' }}>
+                    due this cycle
+                  </span>
+                </div>
+              </div>
+              <div
+                style={{
+                  width: '28px',
+                  height: '28px',
+                  borderRadius: 'var(--radius-xs)',
+                  background: 'rgba(245, 158, 11, 0.12)',
+                  color: '#f59e0b',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center'
+                }}
+              >
+                <Receipt size={14} />
+              </div>
+            </div>
+
+            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.72rem', color: 'var(--text-muted)', marginTop: '14px' }}>
+              <span>Settled: {formatCurrency(sectionBreakdowns.bills.settledAmount, 'INR')}</span>
+              <span style={{ color: 'var(--primary)', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '2px' }}>
+                Pay Bills <ArrowRight size={11} />
+              </span>
+            </div>
           </div>
-          <div style={{ fontSize: '0.7rem', color: '#10b981', marginTop: '3px', display: 'flex', alignItems: 'center', gap: '4px' }}>
-            <span>Receivables</span>
-            <ArrowRight size={11} />
+
+          {/* 3. Chit Funds */}
+          <div
+            className="premium-card glow-hover"
+            style={{ padding: '14px 16px', cursor: 'pointer' }}
+            onClick={() => onNavigatePage('chits')}
+          >
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+              <div>
+                <span style={{ fontSize: '0.7rem', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase' }}>
+                  Chit Funds ({sectionBreakdowns.chits.count} Active)
+                </span>
+                <div style={{ display: 'flex', alignItems: 'baseline', gap: '6px', marginTop: '4px' }}>
+                  <span style={{ fontFamily: 'var(--font-display)', fontSize: '1.25rem', fontWeight: 800, color: '#6366f1' }}>
+                    {formatCurrency(sectionBreakdowns.chits.monthlyTotal, 'INR')}/mo
+                  </span>
+                  <span style={{ fontSize: '0.76rem', color: 'var(--text-muted)' }}>
+                    Pool: {formatCurrency(sectionBreakdowns.chits.totalPool, 'INR')}
+                  </span>
+                </div>
+              </div>
+              <div
+                style={{
+                  width: '28px',
+                  height: '28px',
+                  borderRadius: 'var(--radius-xs)',
+                  background: 'rgba(99, 102, 241, 0.12)',
+                  color: '#6366f1',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center'
+                }}
+              >
+                <Sparkles size={14} />
+              </div>
+            </div>
+
+            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.72rem', color: 'var(--text-muted)', marginTop: '14px' }}>
+              <span>Paid To Date: <strong style={{ color: '#10b981' }}>{formatCurrency(sectionBreakdowns.chits.totalPaid, 'INR')}</strong></span>
+              <span style={{ color: '#6366f1', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '2px' }}>
+                Chit Tracker <ArrowRight size={11} />
+              </span>
+            </div>
+          </div>
+
+          {/* 4. Loans & EMIs */}
+          <div
+            className="premium-card glow-hover"
+            style={{ padding: '14px 16px', cursor: 'pointer' }}
+            onClick={() => onNavigatePage('emis')}
+          >
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+              <div>
+                <span style={{ fontSize: '0.7rem', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase' }}>
+                  Loans & EMIs ({sectionBreakdowns.emis.count} Active)
+                </span>
+                <div style={{ display: 'flex', alignItems: 'baseline', gap: '6px', marginTop: '4px' }}>
+                  <span style={{ fontFamily: 'var(--font-display)', fontSize: '1.25rem', fontWeight: 800, color: '#3b82f6' }}>
+                    {formatCurrency(sectionBreakdowns.emis.monthlyTotal, 'INR')}/mo
+                  </span>
+                  <span style={{ fontSize: '0.76rem', color: 'var(--text-muted)' }}>
+                    Principal: {formatCurrency(sectionBreakdowns.emis.totalLoanAmount, 'INR')}
+                  </span>
+                </div>
+              </div>
+              <div
+                style={{
+                  width: '28px',
+                  height: '28px',
+                  borderRadius: 'var(--radius-xs)',
+                  background: 'rgba(59, 130, 246, 0.12)',
+                  color: '#3b82f6',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center'
+                }}
+              >
+                <Landmark size={14} />
+              </div>
+            </div>
+
+            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.72rem', color: 'var(--text-muted)', marginTop: '14px' }}>
+              <span>Monthly commitment</span>
+              <span style={{ color: '#3b82f6', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '2px' }}>
+                View Loans <ArrowRight size={11} />
+              </span>
+            </div>
+          </div>
+
+          {/* 5. Money Lent & Borrowed */}
+          <div
+            className="premium-card glow-hover"
+            style={{ padding: '14px 16px', cursor: 'pointer' }}
+            onClick={() => onNavigatePage('money_lent')}
+          >
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+              <div>
+                <span style={{ fontSize: '0.7rem', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase' }}>
+                  Hand Loans & Lending
+                </span>
+                <div style={{ display: 'flex', alignItems: 'baseline', gap: '6px', marginTop: '4px' }}>
+                  <span style={{ fontFamily: 'var(--font-display)', fontSize: '1.25rem', fontWeight: 800, color: '#10b981' }}>
+                    {formatCurrency(sectionBreakdowns.lending.lentPending, 'INR')}
+                  </span>
+                  <span style={{ fontSize: '0.76rem', color: 'var(--text-muted)' }}>
+                    to collect
+                  </span>
+                </div>
+              </div>
+              <div
+                style={{
+                  width: '28px',
+                  height: '28px',
+                  borderRadius: 'var(--radius-xs)',
+                  background: 'rgba(16, 185, 129, 0.12)',
+                  color: '#10b981',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center'
+                }}
+              >
+                <HandCoins size={14} />
+              </div>
+            </div>
+
+            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.72rem', color: 'var(--text-muted)', marginTop: '14px' }}>
+              <span>Borrowed to repay: {formatCurrency(sectionBreakdowns.lending.borrowedPending, 'INR')}</span>
+              <span style={{ color: '#10b981', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '2px' }}>
+                Receivables <ArrowRight size={11} />
+              </span>
+            </div>
+          </div>
+
+          {/* 6. Income & Net Disposable */}
+          <div
+            className="premium-card glow-hover"
+            style={{ padding: '14px 16px', cursor: 'pointer' }}
+            onClick={() => onNavigatePage('income')}
+          >
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+              <div>
+                <span style={{ fontSize: '0.7rem', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase' }}>
+                  Monthly Salary Stream
+                </span>
+                <div style={{ display: 'flex', alignItems: 'baseline', gap: '6px', marginTop: '4px' }}>
+                  <span style={{ fontFamily: 'var(--font-display)', fontSize: '1.25rem', fontWeight: 800, color: '#10b981' }}>
+                    {formatCurrency(sectionBreakdowns.salary.monthlyExpected, 'INR')}
+                  </span>
+                  <span style={{ fontSize: '0.76rem', color: 'var(--text-muted)' }}>
+                    salary inflow
+                  </span>
+                </div>
+              </div>
+              <div
+                style={{
+                  width: '28px',
+                  height: '28px',
+                  borderRadius: 'var(--radius-xs)',
+                  background: 'rgba(16, 185, 129, 0.12)',
+                  color: '#10b981',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center'
+                }}
+              >
+                <TrendingUp size={14} />
+              </div>
+            </div>
+
+            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.72rem', color: 'var(--text-muted)', marginTop: '14px' }}>
+              <span>Net Disposable: <strong style={{ color: '#10b981' }}>{formatCurrency(sectionBreakdowns.commitments.remainingDisposable, 'INR')}</strong></span>
+              <span style={{ color: 'var(--primary)', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '2px' }}>
+                Income Ledger <ArrowRight size={11} />
+              </span>
+            </div>
           </div>
         </div>
       </div>

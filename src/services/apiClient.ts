@@ -82,6 +82,23 @@ const DEFAULT_INITIAL_STATE = {
       currency: 'INR',
       status: 'active',
       cardColor: 'linear-gradient(135deg, #0284c7 0%, #0369a1 100%)'
+    },
+    {
+      id: 'acc_card_03',
+      name: 'Primary Credit Card',
+      type: 'credit_card',
+      institution: 'HDFC / Bank Credit Line',
+      maskedNumber: '•••• 1998',
+      creditLimit: 100000,
+      usedAmount: 14200,
+      balance: -14200,
+      availableLimit: 85800,
+      dueDate: '15th of every month',
+      statementDate: '2nd of every month',
+      currency: 'INR',
+      status: 'active',
+      expiryDate: '03/29',
+      cardColor: 'linear-gradient(135deg, #1e1b4b 0%, #312e81 100%)'
     }
   ]
 };
