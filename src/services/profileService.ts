@@ -18,7 +18,11 @@ export class ProfileService {
     try {
       const serverProfile = await ApiClient.getProfile();
       if (serverProfile && serverProfile.personal) {
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(serverProfile));
+        try {
+          localStorage.setItem(STORAGE_KEY, JSON.stringify(serverProfile));
+        } catch (e) {
+          console.warn('LocalStorage quota warning:', e);
+        }
         return serverProfile;
       }
     } catch {
@@ -43,7 +47,11 @@ export class ProfileService {
       updatedAt: new Date().toISOString()
     };
 
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
+    } catch (e) {
+      console.warn('LocalStorage quota warning while saving profile:', e);
+    }
 
     try {
       await ApiClient.updateProfile(updated);

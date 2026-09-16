@@ -43,7 +43,11 @@ export const AvatarUploadModal: React.FC<AvatarUploadModalProps> = ({
     if (result.dataUrl) {
       setPreviewUrl(result.dataUrl);
       setSelectedFileName(file.name);
-      setFileSizeText(`${(file.size / 1024).toFixed(1)} KB`);
+      setFileSizeText(
+        result.compressedSizeKb
+          ? `${result.compressedSizeKb} KB (Optimized)`
+          : `${(file.size / 1024).toFixed(1)} KB`
+      );
       success('Image Ready', 'Click "Apply Photo" to save your profile picture.');
     }
   };
@@ -78,8 +82,9 @@ export const AvatarUploadModal: React.FC<AvatarUploadModalProps> = ({
       await onSave(previewUrl);
       success('Profile Photo Updated', 'Your new photo has been saved.');
       handleClose();
-    } catch {
-      error('Save Failed', 'Unable to save profile photo. Please try again.');
+    } catch (err: any) {
+      console.error('Save photo error:', err);
+      error('Save Failed', err?.message || 'Unable to save profile photo. Please try again.');
     } finally {
       setIsProcessing(false);
     }

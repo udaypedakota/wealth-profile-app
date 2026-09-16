@@ -51,11 +51,12 @@ const DEFAULT_INITIAL_STATE = {
   ]
 };
 
-// Base URL: supports both direct backend port 5000 and vite proxy /api
-const API_BASE = 'http://localhost:5000/api';
+// Base URL: relative /api works seamlessly on localhost, mobile network IP, and production
+const API_BASE = '/api';
 
 export class ApiClient {
   static async request(endpoint: string, options: RequestInit = {}) {
+    // 1. Primary: relative /api (handled via Vite proxy or reverse proxy)
     try {
       const response = await fetch(`${API_BASE}${endpoint}`, {
         headers: {
@@ -69,20 +70,20 @@ export class ApiClient {
         return await response.json();
       }
     } catch {
-      // Backend not reached or offline -> smooth local fallback below
+      // Backend not reached via /api -> try direct localhost fallback
     }
 
-    // Try proxy fallback
+    // 2. Direct backend fallback (for standalone dev on localhost)
     try {
-      const proxyResponse = await fetch(`/api${endpoint}`, {
+      const directResponse = await fetch(`http://localhost:5000/api${endpoint}`, {
         headers: {
           'Content-Type': 'application/json',
           ...options.headers
         },
         ...options
       });
-      if (proxyResponse.ok) {
-        return await proxyResponse.json();
+      if (directResponse.ok) {
+        return await directResponse.json();
       }
     } catch {}
 
@@ -92,11 +93,21 @@ export class ApiClient {
   // Authentication
   static async login(usernameOrEmail: string, password: string) {
     try {
-      const response = await fetch(`${API_BASE}/auth/login`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ usernameOrEmail, password })
-      });
+      let response: Response | null = null;
+      try {
+        response = await fetch(`${API_BASE}/auth/login`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ usernameOrEmail, password })
+        });
+      } catch {
+        // Fallback to direct backend if proxy failed
+        response = await fetch(`http://localhost:5000/api/auth/login`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ usernameOrEmail, password })
+        });
+      }
       const data = await response.json();
       if (!response.ok) {
         throw new Error(data.error || 'Authentication failed');
