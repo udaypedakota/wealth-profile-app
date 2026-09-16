@@ -15,7 +15,8 @@ import {
   Coins,
   ChevronRight,
   TrendingDown,
-  Info
+  Info,
+  RotateCcw
 } from 'lucide-react';
 
 export interface ChitPayment {
@@ -191,6 +192,17 @@ export const ChitsView: React.FC = () => {
       loadChits();
     } catch (err: any) {
       error('Delete Failed', err?.message || 'Could not delete chit.');
+    }
+  };
+
+  const handleClearPayments = async (id: string, name: string) => {
+    if (!window.confirm(`Clear all recorded payments for "${name}" so you can re-enter month by month from your book?`)) return;
+    try {
+      await ApiClient.updateChit(id, { payments: [] });
+      success('Payments Cleared', `Cleared all payments for "${name}". Ready for fresh entries from your book.`);
+      loadChits();
+    } catch (err: any) {
+      error('Clear Failed', err?.message || 'Could not clear payments.');
     }
   };
 
@@ -473,6 +485,18 @@ export const ChitsView: React.FC = () => {
               </div>
 
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                {paymentsList.length > 0 && (
+                  <button
+                    type="button"
+                    className="btn btn-secondary btn-sm"
+                    style={{ color: '#f59e0b', borderColor: 'rgba(245, 158, 11, 0.3)' }}
+                    onClick={() => handleClearPayments(selectedChit.id, selectedChit.name || selectedChit.title || 'Chit')}
+                    title="Clear all recorded payments in this chit fund"
+                  >
+                    <RotateCcw size={13} />
+                    <span>Clear Payments</span>
+                  </button>
+                )}
                 <button
                   type="button"
                   className="btn btn-secondary btn-sm"

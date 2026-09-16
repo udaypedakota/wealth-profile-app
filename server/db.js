@@ -221,28 +221,7 @@ export const INITIAL_DATABASE = {
       monthlySubscription: 15000,
       startDate: '2026-09-16',
       status: 'Active',
-      payments: [
-        { id: 'p_1', monthNumber: 1, monthName: 'November', amount: 15000, date: '2026-11-06' },
-        { id: 'p_2', monthNumber: 2, monthName: 'October', amount: 15000, date: '2026-10-07' },
-        { id: 'p_3', monthNumber: 3, monthName: 'September', amount: 15000, date: '2026-09-07' },
-        { id: 'p_4', monthNumber: 4, monthName: 'August', amount: 14935, date: '2026-08-09' },
-        { id: 'p_5', monthNumber: 5, monthName: 'July', amount: 14775, date: '2026-07-08' },
-        { id: 'p_6', monthNumber: 6, monthName: 'June', amount: 14625, date: '2026-06-07' },
-        { id: 'p_7', monthNumber: 7, monthName: 'May 2026', amount: 14475, date: '2026-05-05' },
-        { id: 'p_8', monthNumber: 8, monthName: 'Apr 2026', amount: 14275, date: '2026-04-05' },
-        { id: 'p_9', monthNumber: 9, monthName: 'Mar 2026', amount: 14075, date: '2026-03-05' },
-        { id: 'p_10', monthNumber: 10, monthName: 'Feb 2026', amount: 13700, date: '2026-02-05' },
-        { id: 'p_11', monthNumber: 11, monthName: 'Jan 2026', amount: 13290, date: '2026-01-05' },
-        { id: 'p_12', monthNumber: 12, monthName: 'Dec 2025', amount: 13100, date: '2025-12-05' },
-        { id: 'p_13', monthNumber: 13, monthName: 'Nov 2025', amount: 13000, date: '2025-11-05' },
-        { id: 'p_14', monthNumber: 14, monthName: 'Oct 2025', amount: 12850, date: '2025-10-05' },
-        { id: 'p_15', monthNumber: 15, monthName: 'Sep 2025', amount: 12700, date: '2025-09-05' },
-        { id: 'p_16', monthNumber: 16, monthName: 'Aug 2025', amount: 12650, date: '2025-08-05' },
-        { id: 'p_17', monthNumber: 17, monthName: 'Jul 2025', amount: 12550, date: '2025-07-05' },
-        { id: 'p_18', monthNumber: 18, monthName: 'Jun 2025', amount: 12500, date: '2025-06-05' },
-        { id: 'p_19', monthNumber: 19, monthName: 'May 2025', amount: 12500, date: '2025-05-05' },
-        { id: 'p_20', monthNumber: 20, monthName: 'Apr 2025', amount: 12495, date: '2025-04-05' }
-      ]
+      payments: []
     }
   ],
   lending: [
