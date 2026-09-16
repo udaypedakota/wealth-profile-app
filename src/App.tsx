@@ -30,7 +30,8 @@ import {
   ReportsView
 } from './components/views/FinancialModuleViews';
 
-import { Menu, Sun, Moon, Bell, Search, ChevronRight } from 'lucide-react';
+import { Menu, Sun, Moon, Bell, Search, ChevronRight, RotateCcw } from 'lucide-react';
+import { ApiClient } from './services/apiClient';
 
 const AppContent: React.FC = () => {
   const { loading } = useProfile();
@@ -39,6 +40,25 @@ const AppContent: React.FC = () => {
   const [currentPage, setCurrentPage] = useState<ActiveNavPage>('dashboard');
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
   const [isNotifDrawerOpen, setIsNotifDrawerOpen] = useState(false);
+  const [cloudOnline, setCloudOnline] = useState(true);
+  const [isSyncing, setIsSyncing] = useState(false);
+
+  React.useEffect(() => {
+    ApiClient.checkCloudHealth().then((h) => setCloudOnline(h.online));
+    const handleStatus = (e: any) => {
+      if (e?.detail) setCloudOnline(!!e.detail.online);
+    };
+    const handleSync = (e: any) => {
+      if (e?.detail) setIsSyncing(!!e.detail.syncing);
+    };
+    window.addEventListener('moneymate_cloud_status', handleStatus);
+    window.addEventListener('moneymate_sync_status', handleSync);
+    return () => {
+      window.removeEventListener('moneymate_cloud_status', handleStatus);
+      window.removeEventListener('moneymate_sync_status', handleSync);
+    };
+  }, []);
+
   const [hasUnreadNotifs, setHasUnreadNotifs] = useState<boolean>(() => {
     try {
       const read = JSON.parse(localStorage.getItem('moneymate_read_notifications') || '[]');
@@ -118,7 +138,37 @@ const AppContent: React.FC = () => {
           </div>
 
           <div className="navbar-actions">
-            <div className="navbar-search" style={{ maxWidth: '280px' }}>
+            {/* Live MongoDB Atlas Cloud Indicator */}
+            <div
+              className={`cloud-status-badge ${cloudOnline ? 'online' : 'offline'}`}
+              onClick={async () => {
+                setIsSyncing(true);
+                await ApiClient.syncLocalToCloud();
+                setIsSyncing(false);
+              }}
+              title={cloudOnline ? 'Connected to MongoDB Atlas Cloud Database. Click to sync.' : 'Offline Mode. Click to retry connection & sync.'}
+              role="button"
+              tabIndex={0}
+            >
+              {isSyncing ? (
+                <RotateCcw size={12} className="spin" />
+              ) : (
+                <span
+                  style={{
+                    width: '6px',
+                    height: '6px',
+                    borderRadius: '50%',
+                    background: cloudOnline ? '#10b981' : '#f59e0b',
+                    boxShadow: cloudOnline ? '0 0 6px #10b981' : 'none'
+                  }}
+                />
+              )}
+              <span style={{ fontSize: '0.74rem' }}>
+                {isSyncing ? 'Syncing...' : cloudOnline ? 'MongoDB Atlas' : 'Offline'}
+              </span>
+            </div>
+
+            <div className="navbar-search" style={{ maxWidth: '240px' }}>
               <Search size={16} className="navbar-search-icon" />
               <input type="text" placeholder="Search records..." aria-label="Search records" />
             </div>

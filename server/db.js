@@ -243,11 +243,11 @@ class DatabaseManager {
     this.mongoClient = null;
     this.mongoDb = null;
     this.isMongoConnected = false;
-    this.init();
+    this.initPromise = this.init();
   }
 
   async init() {
-    const mongoUri = process.env.MONGODB_URI;
+    const mongoUri = process.env.MONGODB_URI || 'mongodb+srv://udaypedakota:Uday8329@cluster0.khqhjse.mongodb.net/wealthapp?retryWrites=true&w=majority&appName=Cluster0';
     if (mongoUri && mongoUri.startsWith('mongodb')) {
       try {
         console.log('Connecting to MongoDB Atlas cluster...');
@@ -382,6 +382,7 @@ class DatabaseManager {
 
   // Multi-Tenant Get Collection / Entity scoped by userId
   async get(key, userId = 'user_uday_01') {
+    if (this.initPromise) await this.initPromise;
     const isUday = !userId || userId === 'user_uday_01';
 
     if (this.isMongoConnected && this.mongoDb) {
@@ -432,6 +433,7 @@ class DatabaseManager {
 
   // Multi-Tenant Save / Update Entity scoped by userId
   async set(key, value, userId = 'user_uday_01') {
+    if (this.initPromise) await this.initPromise;
     const isUday = !userId || userId === 'user_uday_01';
 
     if (this.isMongoConnected && this.mongoDb) {
@@ -466,6 +468,7 @@ class DatabaseManager {
 
   // Add Item to Array Collection with userId
   async addItem(collectionKey, item, userId = 'user_uday_01') {
+    if (this.initPromise) await this.initPromise;
     const effectiveUserId = userId || 'user_uday_01';
     const newItem = {
       ...item,
@@ -493,6 +496,7 @@ class DatabaseManager {
 
   // Delete Item from Array Collection scoped by userId
   async deleteItem(collectionKey, itemId, userId = 'user_uday_01') {
+    if (this.initPromise) await this.initPromise;
     const isUday = !userId || userId === 'user_uday_01';
     const query = isUday ? { id: itemId } : { id: itemId, userId };
 
@@ -514,6 +518,7 @@ class DatabaseManager {
 
   // Update Item in Array Collection scoped by userId
   async updateItem(collectionKey, itemId, partialUpdate, userId = 'user_uday_01') {
+    if (this.initPromise) await this.initPromise;
     const isUday = !userId || userId === 'user_uday_01';
     const query = isUday ? { id: itemId } : { id: itemId, userId };
 
@@ -535,6 +540,7 @@ class DatabaseManager {
 
   // User Authentication: Find by username or email
   async findUser(usernameOrEmail) {
+    if (this.initPromise) await this.initPromise;
     const queryStr = (usernameOrEmail || '').trim();
     if (!queryStr) return null;
 
@@ -574,6 +580,7 @@ class DatabaseManager {
 
   // Register New User & Setup isolated workspace
   async registerUser({ fullName, username, email, mobile, password }) {
+    if (this.initPromise) await this.initPromise;
     const cleanUsername = (username || '').trim().toLowerCase();
     const cleanEmail = (email || '').trim().toLowerCase();
     const cleanName = (fullName || cleanUsername).trim();

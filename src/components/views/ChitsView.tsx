@@ -70,6 +70,10 @@ export const ChitsView: React.FC = () => {
   const [payNotes, setPayNotes] = useState('');
   const [isSubmittingPay, setIsSubmittingPay] = useState(false);
 
+  // Cloud sync & status
+  const [isSyncing, setIsSyncing] = useState(false);
+  const [isCloudOnline, setIsCloudOnline] = useState(true);
+
   const loadChits = async () => {
     try {
       setLoading(true);
@@ -90,11 +94,58 @@ export const ChitsView: React.FC = () => {
     }
   };
 
+  const handleManualSync = async () => {
+    try {
+      setIsSyncing(true);
+      const res = await ApiClient.syncLocalToCloud();
+      if (res.success) {
+        if (res.count > 0) {
+          success('MongoDB Atlas Synchronized', res.message);
+        } else {
+          success('Cloud Connected', 'All chits and payments are up to date in MongoDB Atlas.');
+        }
+        await loadChits();
+      } else {
+        error('Sync Notice', res.message);
+      }
+    } finally {
+      setIsSyncing(false);
+    }
+  };
+
   useEffect(() => {
     loadChits();
+
+    // Verify Cloud health & automatically push any unsynced mobile chits/payments to MongoDB Atlas
+    ApiClient.checkCloudHealth().then((health) => {
+      setIsCloudOnline(health.online);
+      if (health.online) {
+        ApiClient.syncLocalToCloud().then((res) => {
+          if (res.success && res.count > 0) {
+            success('Mobile Data Synced', res.message);
+            loadChits();
+          }
+        });
+      }
+    });
+
     const handleUpdate = () => loadChits();
+    const handleCloudStatus = (e: any) => {
+      if (e?.detail) setIsCloudOnline(e.detail.online);
+    };
+    const handleSyncStatus = (e: any) => {
+      if (e?.detail) setIsSyncing(!!e.detail.syncing);
+    };
+
     window.addEventListener('moneymate_data_changed', handleUpdate);
-    return () => window.removeEventListener('moneymate_data_changed', handleUpdate);
+    window.addEventListener('moneymate_cloud_status', handleCloudStatus);
+    window.addEventListener('moneymate_sync_status', handleSyncStatus);
+
+    return () => {
+      window.removeEventListener('moneymate_data_changed', handleUpdate);
+      window.removeEventListener('moneymate_cloud_status', handleCloudStatus);
+      window.removeEventListener('moneymate_sync_status', handleSyncStatus);
+    };
   }, []);
 
   // Auto-calculate Monthly Amount: Total ÷ Duration
@@ -305,7 +356,41 @@ export const ChitsView: React.FC = () => {
           </p>
         </div>
 
-        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '10px' }}>
+        <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '10px' }}>
+          {/* Cloud Connection Live Badge */}
+          <div
+            className={`cloud-status-badge ${isCloudOnline ? 'online' : 'offline'}`}
+            title={isCloudOnline ? 'Connected to MongoDB Atlas Cloud Database' : 'Offline Mode (Local Storage)'}
+          >
+            <span
+              style={{
+                width: '7px',
+                height: '7px',
+                borderRadius: '50%',
+                background: isCloudOnline ? '#10b981' : '#f59e0b',
+                boxShadow: isCloudOnline ? '0 0 6px #10b981' : 'none'
+              }}
+            />
+            <span>{isCloudOnline ? 'MongoDB Atlas' : 'Offline'}</span>
+          </div>
+
+          {/* Sync Local Mobile Data to Cloud DB */}
+          <button
+            type="button"
+            className="btn btn-secondary"
+            style={{
+              padding: '8px 12px',
+              fontSize: '0.82rem',
+              gap: '6px'
+            }}
+            onClick={handleManualSync}
+            disabled={isSyncing}
+            title="Upload any chits or payments saved on this device to MongoDB Atlas"
+          >
+            <RotateCcw size={14} className={isSyncing ? 'spin' : ''} />
+            <span>{isSyncing ? 'Syncing...' : 'Sync to Cloud'}</span>
+          </button>
+
           <button
             type="button"
             className="btn btn-secondary"

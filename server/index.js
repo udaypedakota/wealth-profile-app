@@ -11,6 +11,14 @@ const PORT = process.env.PORT || 5000;
 app.use(cors());
 app.use(express.json({ limit: '20mb' })); // Support base64 image uploads
 
+// Ensure /api prefix matches even if serverless environment strips it
+app.use((req, res, next) => {
+  if (req.url && !req.url.startsWith('/api')) {
+    req.url = '/api' + (req.url.startsWith('/') ? req.url : '/' + req.url);
+  }
+  next();
+});
+
 // Helper to extract active userId from request headers or auth token
 function getUserId(req) {
   // 1. Check custom header x-user-id
@@ -629,6 +637,10 @@ app.post('/api/reset', async (req, res) => {
   res.json({ success: true, data: resetData });
 });
 
-app.listen(PORT, () => {
-  console.log(`🚀 MoneyMate Server running at http://localhost:${PORT}`);
-});
+if (!process.env.VERCEL) {
+  app.listen(PORT, () => {
+    console.log(`🚀 MoneyMate Server running at http://localhost:${PORT}`);
+  });
+}
+
+export default app;

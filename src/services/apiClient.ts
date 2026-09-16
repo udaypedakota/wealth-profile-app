@@ -99,6 +99,184 @@ const DEFAULT_INITIAL_STATE = {
 const API_BASE = '/api';
 
 export class ApiClient {
+  static isCloudConnected: boolean = false;
+  static isSyncing: boolean = false;
+
+  static async checkCloudHealth() {
+    try {
+      const res = await fetch(`${API_BASE}/health`);
+      if (res.ok) {
+        const data = await res.json();
+        this.isCloudConnected = true;
+        window.dispatchEvent(new CustomEvent('moneymate_cloud_status', {
+          detail: { online: true, isMongo: !!data.isMongo }
+        }));
+        return { online: true, isMongo: !!data.isMongo, message: 'Cloud Connected' };
+      }
+    } catch {}
+
+    // Fallback direct check for local dev
+    try {
+      const res2 = await fetch('http://localhost:5000/api/health');
+      if (res2.ok) {
+        const data = await res2.json();
+        this.isCloudConnected = true;
+        window.dispatchEvent(new CustomEvent('moneymate_cloud_status', {
+          detail: { online: true, isMongo: !!data.isMongo }
+        }));
+        return { online: true, isMongo: !!data.isMongo, message: 'Local Server Connected' };
+      }
+    } catch {}
+
+    this.isCloudConnected = false;
+    window.dispatchEvent(new CustomEvent('moneymate_cloud_status', {
+      detail: { online: false, isMongo: false }
+    }));
+    return { online: false, isMongo: false, message: 'Offline Mode' };
+  }
+
+  static async syncLocalToCloud(): Promise<{ success: boolean; message: string; count: number }> {
+    if (this.isSyncing) return { success: false, message: 'Sync already in progress', count: 0 };
+    
+    // Check health first
+    const health = await this.checkCloudHealth();
+    if (!health.online) {
+      return { success: false, message: 'Cloud database is currently unreachable', count: 0 };
+    }
+
+    try {
+      this.isSyncing = true;
+      window.dispatchEvent(new CustomEvent('moneymate_sync_status', { detail: { syncing: true } }));
+      let totalSynced = 0;
+
+      // 1. Sync Chits & Chit Payments from mobile phone storage to MongoDB
+      const remoteChits = await this.request('/chits');
+      const localChits = getLocal<any[]>('chits', []);
+      if (Array.isArray(remoteChits) && Array.isArray(localChits)) {
+        for (const localChit of localChits) {
+          if (!localChit || !localChit.name) continue;
+          let matchedRemote = remoteChits.find(
+            (rc: any) =>
+              rc.id === localChit.id ||
+              (rc.name && rc.name.trim().toLowerCase() === localChit.name.trim().toLowerCase())
+          );
+
+          if (!matchedRemote) {
+            // Chit does not exist on MongoDB Atlas -> Create it!
+            const created = await this.request('/chits', {
+              method: 'POST',
+              body: JSON.stringify({
+                name: localChit.name,
+                title: localChit.title || localChit.name,
+                totalAmount: localChit.totalAmount || localChit.totalPotValue || 0,
+                totalPotValue: localChit.totalPotValue || localChit.totalAmount || 0,
+                durationMonths: localChit.durationMonths || 20,
+                monthlyAmount: localChit.monthlyAmount || localChit.monthlySubscription || 0,
+                monthlySubscription: localChit.monthlySubscription || localChit.monthlyAmount || 0,
+                startDate: localChit.startDate || new Date().toISOString().split('T')[0],
+                status: localChit.status || 'Active',
+                payments: []
+              })
+            });
+            if (created) {
+              matchedRemote = created;
+              totalSynced++;
+            }
+          }
+
+          // Sync payments for this chit
+          if (matchedRemote && Array.isArray(localChit.payments) && localChit.payments.length > 0) {
+            const remotePayments = Array.isArray(matchedRemote.payments) ? matchedRemote.payments : [];
+            for (const pay of localChit.payments) {
+              const payExists = remotePayments.some(
+                (rp: any) =>
+                  rp.id === pay.id ||
+                  (rp.monthName === pay.monthName && Number(rp.amount) === Number(pay.amount))
+              );
+              if (!payExists) {
+                await this.request(`/chits/${matchedRemote.id}/payments`, {
+                  method: 'POST',
+                  body: JSON.stringify({
+                    monthNumber: pay.monthNumber,
+                    monthName: pay.monthName,
+                    amount: pay.amount,
+                    date: pay.date,
+                    notes: pay.notes || ''
+                  })
+                });
+                totalSynced++;
+              }
+            }
+          }
+        }
+      }
+
+      // 2. Sync Transactions
+      const remoteTxs = await this.request('/transactions');
+      const localTxs = getLocal<any[]>('transactions', []);
+      if (Array.isArray(remoteTxs) && Array.isArray(localTxs)) {
+        for (const localTx of localTxs) {
+          if (!localTx || !localTx.title) continue;
+          const exists = remoteTxs.some(
+            (rt: any) =>
+              rt.id === localTx.id ||
+              (rt.title === localTx.title && rt.amount === localTx.amount && rt.date === localTx.date)
+          );
+          if (!exists) {
+            await this.request('/transactions', {
+              method: 'POST',
+              body: JSON.stringify(localTx)
+            });
+            totalSynced++;
+          }
+        }
+      }
+
+      // 3. Sync Bills
+      const remoteBills = await this.request('/bills');
+      const localBills = getLocal<any[]>('bills', []);
+      if (Array.isArray(remoteBills) && Array.isArray(localBills)) {
+        for (const localBill of localBills) {
+          if (!localBill || !localBill.title) continue;
+          const exists = remoteBills.some(
+            (rb: any) => rb.id === localBill.id || (rb.title === localBill.title && rb.amount === localBill.amount)
+          );
+          if (!exists) {
+            await this.request('/bills', {
+              method: 'POST',
+              body: JSON.stringify(localBill)
+            });
+            totalSynced++;
+          }
+        }
+      }
+
+      // Refresh local cache with authoritative data from MongoDB
+      const refreshedChits = await this.request('/chits');
+      if (Array.isArray(refreshedChits)) setLocal('chits', refreshedChits);
+
+      const refreshedTxs = await this.request('/transactions');
+      if (Array.isArray(refreshedTxs)) setLocal('transactions', refreshedTxs);
+
+      const refreshedBills = await this.request('/bills');
+      if (Array.isArray(refreshedBills)) setLocal('bills', refreshedBills);
+
+      window.dispatchEvent(new CustomEvent('moneymate_data_changed'));
+      window.dispatchEvent(new CustomEvent('moneymate_sync_status', { detail: { syncing: false, count: totalSynced } }));
+
+      return {
+        success: true,
+        message: totalSynced > 0 ? `Successfully synced ${totalSynced} items to MongoDB Atlas!` : 'Cloud Database is up to date',
+        count: totalSynced
+      };
+    } catch (err: any) {
+      return { success: false, message: err.message || 'Sync failed', count: 0 };
+    } finally {
+      this.isSyncing = false;
+      window.dispatchEvent(new CustomEvent('moneymate_sync_status', { detail: { syncing: false } }));
+    }
+  }
+
   static async request(endpoint: string, options: RequestInit = {}) {
     const userId = getCurrentUserId();
     const token = localStorage.getItem('moneymate_token') || '';
@@ -108,7 +286,7 @@ export class ApiClient {
       ...(token ? { 'Authorization': `Bearer ${token}` } : {})
     };
 
-    // 1. Primary: relative /api (handled via Vite proxy or reverse proxy)
+    // 1. Primary: relative /api (handled via Vite proxy on local dev or Vercel serverless in production)
     try {
       const response = await fetch(`${API_BASE}${endpoint}`, {
         ...options,
@@ -119,6 +297,7 @@ export class ApiClient {
       });
 
       if (response.ok) {
+        this.isCloudConnected = true;
         return await response.json();
       }
     } catch {
@@ -135,10 +314,12 @@ export class ApiClient {
         }
       });
       if (directResponse.ok) {
+        this.isCloudConnected = true;
         return await directResponse.json();
       }
     } catch {}
 
+    this.isCloudConnected = false;
     return null; // Signals to use client local fallback
   }
 
@@ -416,6 +597,19 @@ export class ApiClient {
   static async getChits() {
     const res = await this.request('/chits');
     if (res && Array.isArray(res)) {
+      // Check if local storage has unsynced chits or extra payments
+      const localChits = getLocal<any[]>('chits', []);
+      const hasUnsynced = localChits.some(
+        (lc) =>
+          lc &&
+          (!res.some((rc) => rc.id === lc.id || (rc.name && lc.name && rc.name.trim().toLowerCase() === lc.name.trim().toLowerCase())) ||
+            (lc.payments?.length || 0) > (res.find((rc) => rc.id === lc.id || rc.name === lc.name)?.payments?.length || 0))
+      );
+      if (hasUnsynced && !this.isSyncing) {
+        setTimeout(() => {
+          this.syncLocalToCloud();
+        }, 300);
+      }
       setLocal('chits', res);
       return res;
     }
@@ -429,9 +623,15 @@ export class ApiClient {
       ...chit,
       id: 'chit_' + Date.now(),
       status: 'Active',
-      payments: chit.payments || []
+      payments: chit.payments || [],
+      _isOffline: true
     };
-    current.unshift(newChit);
+    const existsIdx = current.findIndex((c) => c.id === newChit.id);
+    if (existsIdx >= 0) {
+      current[existsIdx] = newChit;
+    } else {
+      current.unshift(newChit);
+    }
     setLocal('chits', current);
     window.dispatchEvent(new CustomEvent('moneymate_data_changed'));
     return newChit;
