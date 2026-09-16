@@ -1,9 +1,21 @@
-// Fallback local memory / localStorage storage keys
+// Scoped local storage keys by user
 const LOCAL_STORAGE_PREFIX = 'moneymate_local_';
+
+function getCurrentUserId(): string {
+  try {
+    const userStr = localStorage.getItem('moneymate_user');
+    if (userStr) {
+      const u = JSON.parse(userStr);
+      if (u && (u.id || u.username)) return u.id || u.username;
+    }
+  } catch {}
+  return 'user_uday_01';
+}
 
 function getLocal<T>(key: string, fallback: T): T {
   try {
-    const item = localStorage.getItem(LOCAL_STORAGE_PREFIX + key);
+    const userId = getCurrentUserId();
+    const item = localStorage.getItem(`${LOCAL_STORAGE_PREFIX}${userId}_${key}`) || localStorage.getItem(LOCAL_STORAGE_PREFIX + key);
     return item ? JSON.parse(item) : fallback;
   } catch {
     return fallback;
@@ -12,7 +24,8 @@ function getLocal<T>(key: string, fallback: T): T {
 
 function setLocal<T>(key: string, data: T): void {
   try {
-    localStorage.setItem(LOCAL_STORAGE_PREFIX + key, JSON.stringify(data));
+    const userId = getCurrentUserId();
+    localStorage.setItem(`${LOCAL_STORAGE_PREFIX}${userId}_${key}`, JSON.stringify(data));
   } catch (e) {
     console.warn('LocalStorage error:', e);
   }
@@ -108,14 +121,22 @@ const API_BASE = '/api';
 
 export class ApiClient {
   static async request(endpoint: string, options: RequestInit = {}) {
+    const userId = getCurrentUserId();
+    const token = localStorage.getItem('moneymate_token') || '';
+    const authHeaders: Record<string, string> = {
+      'Content-Type': 'application/json',
+      'x-user-id': userId,
+      ...(token ? { 'Authorization': `Bearer ${token}` } : {})
+    };
+
     // 1. Primary: relative /api (handled via Vite proxy or reverse proxy)
     try {
       const response = await fetch(`${API_BASE}${endpoint}`, {
+        ...options,
         headers: {
-          'Content-Type': 'application/json',
-          ...options.headers
-        },
-        ...options
+          ...authHeaders,
+          ...((options.headers as any) || {})
+        }
       });
 
       if (response.ok) {
@@ -128,11 +149,11 @@ export class ApiClient {
     // 2. Direct backend fallback (for standalone dev on localhost)
     try {
       const directResponse = await fetch(`http://localhost:5000/api${endpoint}`, {
+        ...options,
         headers: {
-          'Content-Type': 'application/json',
-          ...options.headers
-        },
-        ...options
+          ...authHeaders,
+          ...((options.headers as any) || {})
+        }
       });
       if (directResponse.ok) {
         return await directResponse.json();
@@ -140,6 +161,31 @@ export class ApiClient {
     } catch {}
 
     return null; // Signals to use client local fallback
+  }
+
+  // Registration for friends and new members
+  static async register(userData: { fullName: string; username: string; email?: string; mobile?: string; password: string }) {
+    let response: Response | null = null;
+    try {
+      response = await fetch(`${API_BASE}/auth/register`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(userData)
+      });
+    } catch {
+      // Direct backend fallback
+      response = await fetch(`http://localhost:5000/api/auth/register`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(userData)
+      });
+    }
+
+    const data = await response.json();
+    if (!response.ok) {
+      throw new Error(data.error || 'Registration failed');
+    }
+    return data;
   }
 
   // Authentication

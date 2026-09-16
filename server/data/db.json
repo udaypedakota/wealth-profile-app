@@ -324,5 +324,7 @@
       ]
     }
   ],
-  "lending": []
+  "lending": [],
+  "users": [],
+  "profiles": {}
 }

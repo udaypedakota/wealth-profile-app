@@ -11,18 +11,47 @@ const PORT = process.env.PORT || 5000;
 app.use(cors());
 app.use(express.json({ limit: '20mb' })); // Support base64 image uploads
 
+// Helper to extract active userId from request headers or auth token
+function getUserId(req) {
+  // 1. Check custom header x-user-id
+  const headerUserId = req.headers['x-user-id'];
+  if (headerUserId && typeof headerUserId === 'string' && headerUserId.trim()) {
+    return headerUserId.trim();
+  }
+
+  // 2. Check query param ?userId=
+  if (req.query && req.query.userId && typeof req.query.userId === 'string') {
+    return req.query.userId.trim();
+  }
+
+  // 3. Check Authorization header
+  const auth = req.headers['authorization'] || '';
+  if (auth.startsWith('Bearer moneymate_')) {
+    const tokenBody = auth.replace('Bearer moneymate_', '');
+    if (tokenBody.startsWith('user_')) {
+      const match = tokenBody.match(/^(user_[a-zA-Z0-9_-]+?)_\d+$/);
+      if (match && match[1]) {
+        return match[1];
+      }
+    }
+  }
+
+  // Default to Uday for backward compatibility
+  return 'user_uday_01';
+}
+
 // Health check
 app.get('/api/health', (req, res) => {
   res.json({
     status: 'online',
-    app: 'MoneyMate - Uday Pedakota Personal Wealth Server',
+    app: 'MoneyMate - Multi-User Personal Wealth Server',
     time: new Date().toISOString(),
     isMongo: dbManager.isMongoConnected
   });
 });
 
 /* ==========================================================================
-   AUTHENTICATION & SESSION (MongoDB Atlas Verified)
+   AUTHENTICATION & SESSION (MongoDB Atlas Verified & Multi-User Enabled)
    ========================================================================== */
 app.post('/api/auth/login', async (req, res) => {
   try {
@@ -41,22 +70,45 @@ app.post('/api/auth/login', async (req, res) => {
       return res.status(401).json({ error: 'Incorrect password. Please try again.' });
     }
 
-    // Create session token
-    const token = `moneymate_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
+    const userId = user.id || user._id;
+    // Create session token with userId embedded
+    const token = `moneymate_${userId}_${Date.now()}`;
 
     res.json({
       success: true,
       token,
       user: {
-        id: user.id || user._id,
+        id: userId,
         username: user.username,
         email: user.email,
         fullName: user.fullName || 'Uday Pedakota',
-        tier: 'Private Wealth Member'
+        tier: user.tier || 'Private Wealth Member'
       }
     });
   } catch (err) {
     res.status(500).json({ error: err.message });
+  }
+});
+
+app.post('/api/auth/register', async (req, res) => {
+  try {
+    const { fullName, username, email, mobile, password } = req.body || {};
+    if (!username || !password) {
+      return res.status(400).json({ error: 'Username and password are required.' });
+    }
+
+    const result = await dbManager.registerUser({
+      fullName: fullName || username,
+      username,
+      email,
+      mobile,
+      password
+    });
+
+    res.status(201).json(result);
+  } catch (err) {
+    console.warn('Registration error:', err.message);
+    res.status(400).json({ error: err.message });
   }
 });
 
@@ -66,13 +118,15 @@ app.post('/api/auth/logout', (req, res) => {
 
 app.get('/api/auth/me', async (req, res) => {
   try {
-    const profile = await dbManager.get('profile');
+    const userId = getUserId(req);
+    const profile = await dbManager.get('profile', userId);
     res.json({
       authenticated: true,
       user: {
-        fullName: profile?.personal?.fullName || 'Uday Pedakota',
-        username: profile?.personal?.username || 'udaypedakota',
-        email: profile?.contact?.email || 'peddakotaudaykumar@gmail.com'
+        id: userId,
+        fullName: profile?.personal?.fullName || (userId === 'user_uday_01' ? 'Uday Pedakota' : 'MoneyMate Member'),
+        username: profile?.personal?.username || (userId === 'user_uday_01' ? 'udaypedakota' : 'user'),
+        email: profile?.contact?.email || (userId === 'user_uday_01' ? 'peddakotaudaykumar@gmail.com' : '')
       }
     });
   } catch (err) {
@@ -81,13 +135,14 @@ app.get('/api/auth/me', async (req, res) => {
 });
 
 /* ==========================================================================
-   PROFILE & PERSONAL INFORMATION
+   PROFILE & PERSONAL INFORMATION (Scoped by User)
    ========================================================================== */
 app.get('/api/profile', async (req, res) => {
   try {
-    const profile = await dbManager.get('profile');
-    const accounts = await dbManager.get('accounts');
-    const transactions = await dbManager.get('transactions');
+    const userId = getUserId(req);
+    const profile = await dbManager.get('profile', userId);
+    const accounts = await dbManager.get('accounts', userId);
+    const transactions = await dbManager.get('transactions', userId);
 
     // Calculate dynamic stats
     let totalIncome = 0;
@@ -98,8 +153,8 @@ app.get('/api/profile', async (req, res) => {
       if (tx.type === 'debit') totalExpenses += Number(tx.amount || 0);
     });
 
-    const bills = await dbManager.get('bills');
-    const emis = await dbManager.get('emis');
+    const bills = await dbManager.get('bills', userId);
+    const emis = await dbManager.get('emis', userId);
     const creditCards = accounts.filter((a) => a.type === 'credit_card');
 
     res.json({
@@ -107,9 +162,9 @@ app.get('/api/profile', async (req, res) => {
       accounts,
       stats: {
         totalTransactions: transactions.length,
-        totalIncome: totalIncome || profile.financial.monthlyIncome,
-        totalExpenses: totalExpenses || 3700,
-        totalSavings: (totalIncome || profile.financial.monthlyIncome) - totalExpenses,
+        totalIncome: totalIncome || profile.financial?.monthlyIncome || 0,
+        totalExpenses: totalExpenses || 0,
+        totalSavings: (totalIncome || profile.financial?.monthlyIncome || 0) - totalExpenses,
         activeBills: bills.filter((b) => b.status !== 'Settled').length,
         activeEmis: emis.length,
         creditCardsCount: creditCards.length,
@@ -123,7 +178,8 @@ app.get('/api/profile', async (req, res) => {
 
 app.put('/api/profile', async (req, res) => {
   try {
-    const current = await dbManager.get('profile');
+    const userId = getUserId(req);
+    const current = await dbManager.get('profile', userId);
     const updated = {
       ...current,
       ...req.body,
@@ -135,7 +191,7 @@ app.put('/api/profile', async (req, res) => {
       security: { ...current.security, ...(req.body.security || {}) },
       updatedAt: new Date().toISOString()
     };
-    await dbManager.set('profile', updated);
+    await dbManager.set('profile', updated, userId);
     res.json(updated);
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -144,11 +200,13 @@ app.put('/api/profile', async (req, res) => {
 
 app.post('/api/profile/avatar', async (req, res) => {
   try {
+    const userId = getUserId(req);
     const { avatarUrl } = req.body;
-    const current = await dbManager.get('profile');
+    const current = await dbManager.get('profile', userId);
+    if (!current.personal) current.personal = {};
     current.personal.avatarUrl = avatarUrl || '';
     current.updatedAt = new Date().toISOString();
-    await dbManager.set('profile', current);
+    await dbManager.set('profile', current, userId);
     res.json({ success: true, avatarUrl: current.personal.avatarUrl });
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -156,17 +214,18 @@ app.post('/api/profile/avatar', async (req, res) => {
 });
 
 /* ==========================================================================
-   DASHBOARD SUMMARY (Real-time aggregated calculations)
+   DASHBOARD SUMMARY (Real-time aggregated calculations scoped by User)
    ========================================================================== */
 app.get('/api/dashboard', async (req, res) => {
   try {
-    const profile = await dbManager.get('profile');
-    const accounts = await dbManager.get('accounts');
-    const transactions = await dbManager.get('transactions');
-    const bills = await dbManager.get('bills');
-    const emis = await dbManager.get('emis');
-    const chits = await dbManager.get('chits');
-    const lending = await dbManager.get('lending');
+    const userId = getUserId(req);
+    const profile = await dbManager.get('profile', userId);
+    const accounts = await dbManager.get('accounts', userId);
+    const transactions = await dbManager.get('transactions', userId);
+    const bills = await dbManager.get('bills', userId);
+    const emis = await dbManager.get('emis', userId);
+    const chits = await dbManager.get('chits', userId);
+    const lending = await dbManager.get('lending', userId);
 
     const todayStr = new Date().toISOString().split('T')[0];
 
@@ -256,14 +315,14 @@ app.get('/api/dashboard', async (req, res) => {
       }
     });
 
-    const monthlySalary = Number(profile.financial?.monthlyIncome || 60000);
+    const monthlySalary = Number(profile.financial?.monthlyIncome || 0);
     const totalMonthlyCommitments = monthlyEmiTotal + monthlyChitsTotal + pendingBillsAmount + totalCreditUsed;
     const remainingDisposable = Math.max(0, monthlySalary - (monthlyEmiTotal + monthlyChitsTotal + pendingBillsAmount));
 
     res.json({
       user: {
-        fullName: profile.personal?.fullName || 'Uday Pedakota',
-        firstName: profile.personal?.firstName || 'Uday',
+        fullName: profile.personal?.fullName || 'MoneyMate Member',
+        firstName: profile.personal?.firstName || 'Member',
         avatarUrl: profile.personal?.avatarUrl || '',
         tier: profile.tier || 'Private Wealth Member'
       },
@@ -337,11 +396,12 @@ app.get('/api/dashboard', async (req, res) => {
 });
 
 /* ==========================================================================
-   TRANSACTIONS (Daily money in / out)
+   TRANSACTIONS (Daily money in / out scoped by User)
    ========================================================================== */
 app.get('/api/transactions', async (req, res) => {
   try {
-    const transactions = await dbManager.get('transactions');
+    const userId = getUserId(req);
+    const transactions = await dbManager.get('transactions', userId);
     res.json(transactions);
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -350,6 +410,7 @@ app.get('/api/transactions', async (req, res) => {
 
 app.post('/api/transactions', async (req, res) => {
   try {
+    const userId = getUserId(req);
     const { title, category, amount, type, account, notes, date } = req.body;
 
     if (!title || !amount || !type) {
@@ -367,15 +428,15 @@ app.post('/api/transactions', async (req, res) => {
       status: 'Completed'
     };
 
-    const saved = await dbManager.addItem('transactions', newTx);
+    const saved = await dbManager.addItem('transactions', newTx, userId);
 
     // Auto-update account balance if matching account exists
-    const accounts = await dbManager.get('accounts');
+    const accounts = await dbManager.get('accounts', userId);
     const matchedAccount = accounts.find((a) => a.name === newTx.account);
     if (matchedAccount) {
       const delta = newTx.type === 'credit' ? newTx.amount : -newTx.amount;
       const newBal = Number(matchedAccount.balance || 0) + delta;
-      await dbManager.updateItem('accounts', matchedAccount.id, { balance: newBal });
+      await dbManager.updateItem('accounts', matchedAccount.id, { balance: newBal }, userId);
     }
 
     res.status(201).json(saved);
@@ -386,7 +447,8 @@ app.post('/api/transactions', async (req, res) => {
 
 app.delete('/api/transactions/:id', async (req, res) => {
   try {
-    const result = await dbManager.deleteItem('transactions', req.params.id);
+    const userId = getUserId(req);
+    const result = await dbManager.deleteItem('transactions', req.params.id, userId);
     res.json(result);
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -394,58 +456,68 @@ app.delete('/api/transactions/:id', async (req, res) => {
 });
 
 /* ==========================================================================
-   BILLS, EMIS, CHITS, LENDING, ACCOUNTS
+   BILLS, EMIS, CHITS, LENDING, ACCOUNTS (Scoped by User)
    ========================================================================== */
 // Bills
 app.get('/api/bills', async (req, res) => {
-  res.json(await dbManager.get('bills'));
+  const userId = getUserId(req);
+  res.json(await dbManager.get('bills', userId));
 });
 
 app.post('/api/bills', async (req, res) => {
-  const newBill = await dbManager.addItem('bills', req.body);
+  const userId = getUserId(req);
+  const newBill = await dbManager.addItem('bills', req.body, userId);
   res.status(201).json(newBill);
 });
 
 app.patch('/api/bills/:id/pay', async (req, res) => {
-  const updated = await dbManager.updateItem('bills', req.params.id, { status: 'Settled', paidAt: new Date().toISOString() });
+  const userId = getUserId(req);
+  const updated = await dbManager.updateItem('bills', req.params.id, { status: 'Settled', paidAt: new Date().toISOString() }, userId);
   res.json(updated);
 });
 
 app.delete('/api/bills/:id', async (req, res) => {
-  res.json(await dbManager.deleteItem('bills', req.params.id));
+  const userId = getUserId(req);
+  res.json(await dbManager.deleteItem('bills', req.params.id, userId));
 });
 
 // EMIs
 app.get('/api/emis', async (req, res) => {
-  res.json(await dbManager.get('emis'));
+  const userId = getUserId(req);
+  res.json(await dbManager.get('emis', userId));
 });
 
 app.post('/api/emis', async (req, res) => {
-  const newEmi = await dbManager.addItem('emis', req.body);
+  const userId = getUserId(req);
+  const newEmi = await dbManager.addItem('emis', req.body, userId);
   res.status(201).json(newEmi);
 });
 
 app.delete('/api/emis/:id', async (req, res) => {
-  res.json(await dbManager.deleteItem('emis', req.params.id));
+  const userId = getUserId(req);
+  res.json(await dbManager.deleteItem('emis', req.params.id, userId));
 });
 
 // Chits
 app.get('/api/chits', async (req, res) => {
-  res.json(await dbManager.get('chits'));
+  const userId = getUserId(req);
+  res.json(await dbManager.get('chits', userId));
 });
 
 app.post('/api/chits', async (req, res) => {
+  const userId = getUserId(req);
   const chitData = {
     ...req.body,
     payments: req.body.payments || []
   };
-  const newChit = await dbManager.addItem('chits', chitData);
+  const newChit = await dbManager.addItem('chits', chitData, userId);
   res.status(201).json(newChit);
 });
 
 app.put('/api/chits/:id', async (req, res) => {
   try {
-    const updated = await dbManager.updateItem('chits', req.params.id, req.body);
+    const userId = getUserId(req);
+    const updated = await dbManager.updateItem('chits', req.params.id, req.body, userId);
     res.json(updated);
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -453,13 +525,15 @@ app.put('/api/chits/:id', async (req, res) => {
 });
 
 app.delete('/api/chits/:id', async (req, res) => {
-  res.json(await dbManager.deleteItem('chits', req.params.id));
+  const userId = getUserId(req);
+  res.json(await dbManager.deleteItem('chits', req.params.id, userId));
 });
 
 // Add Chit Payment
 app.post('/api/chits/:id/payments', async (req, res) => {
   try {
-    const chits = await dbManager.get('chits');
+    const userId = getUserId(req);
+    const chits = await dbManager.get('chits', userId);
     const chit = chits.find((c) => c.id === req.params.id);
     if (!chit) {
       return res.status(404).json({ error: 'Chit not found' });
@@ -476,7 +550,7 @@ app.post('/api/chits/:id/payments', async (req, res) => {
     };
 
     const updatedPayments = [newPayment, ...existingPayments];
-    await dbManager.updateItem('chits', req.params.id, { payments: updatedPayments });
+    await dbManager.updateItem('chits', req.params.id, { payments: updatedPayments }, userId);
 
     res.status(201).json({ success: true, payment: newPayment, payments: updatedPayments });
   } catch (err) {
@@ -487,14 +561,15 @@ app.post('/api/chits/:id/payments', async (req, res) => {
 // Delete Chit Payment
 app.delete('/api/chits/:id/payments/:paymentId', async (req, res) => {
   try {
-    const chits = await dbManager.get('chits');
+    const userId = getUserId(req);
+    const chits = await dbManager.get('chits', userId);
     const chit = chits.find((c) => c.id === req.params.id);
     if (!chit) {
       return res.status(404).json({ error: 'Chit not found' });
     }
 
     const updatedPayments = (chit.payments || []).filter((p) => p.id !== req.params.paymentId);
-    await dbManager.updateItem('chits', req.params.id, { payments: updatedPayments });
+    await dbManager.updateItem('chits', req.params.id, { payments: updatedPayments }, userId);
 
     res.json({ success: true, payments: updatedPayments });
   } catch (err) {
@@ -504,40 +579,48 @@ app.delete('/api/chits/:id/payments/:paymentId', async (req, res) => {
 
 // Lending (Money Lent & Borrowed)
 app.get('/api/lending', async (req, res) => {
-  res.json(await dbManager.get('lending'));
+  const userId = getUserId(req);
+  res.json(await dbManager.get('lending', userId));
 });
 
 app.post('/api/lending', async (req, res) => {
-  const newRecord = await dbManager.addItem('lending', req.body);
+  const userId = getUserId(req);
+  const newRecord = await dbManager.addItem('lending', req.body, userId);
   res.status(201).json(newRecord);
 });
 
 app.patch('/api/lending/:id/return', async (req, res) => {
-  const updated = await dbManager.updateItem('lending', req.params.id, { status: 'Returned', returnedAt: new Date().toISOString() });
+  const userId = getUserId(req);
+  const updated = await dbManager.updateItem('lending', req.params.id, { status: 'Returned', returnedAt: new Date().toISOString() }, userId);
   res.json(updated);
 });
 
 app.delete('/api/lending/:id', async (req, res) => {
-  res.json(await dbManager.deleteItem('lending', req.params.id));
+  const userId = getUserId(req);
+  res.json(await dbManager.deleteItem('lending', req.params.id, userId));
 });
 
 // Accounts
 app.get('/api/accounts', async (req, res) => {
-  res.json(await dbManager.get('accounts'));
+  const userId = getUserId(req);
+  res.json(await dbManager.get('accounts', userId));
 });
 
 app.post('/api/accounts', async (req, res) => {
-  const newAcc = await dbManager.addItem('accounts', req.body);
+  const userId = getUserId(req);
+  const newAcc = await dbManager.addItem('accounts', req.body, userId);
   res.status(201).json(newAcc);
 });
 
 app.put('/api/accounts/:id', async (req, res) => {
-  const updated = await dbManager.updateItem('accounts', req.params.id, req.body);
+  const userId = getUserId(req);
+  const updated = await dbManager.updateItem('accounts', req.params.id, req.body, userId);
   res.json(updated);
 });
 
 app.delete('/api/accounts/:id', async (req, res) => {
-  res.json(await dbManager.deleteItem('accounts', req.params.id));
+  const userId = getUserId(req);
+  res.json(await dbManager.deleteItem('accounts', req.params.id, userId));
 });
 
 // Reset

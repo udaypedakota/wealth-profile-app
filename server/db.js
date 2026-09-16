@@ -401,47 +401,97 @@ class DatabaseManager {
     }
   }
 
-  // Generic Get Collection / Entity
-  async get(key) {
+  // Multi-Tenant Get Collection / Entity scoped by userId
+  async get(key, userId = 'user_uday_01') {
+    const isUday = !userId || userId === 'user_uday_01';
+
     if (this.isMongoConnected && this.mongoDb) {
       try {
         const col = this.mongoDb.collection(key);
         if (key === 'profile') {
-          const doc = await col.findOne({ id: 'uday_pedakota_01' });
-          return doc || INITIAL_DATABASE.profile;
+          if (isUday) {
+            const doc = await col.findOne({ $or: [{ id: 'uday_pedakota_01' }, { userId: 'user_uday_01' }] });
+            return doc || INITIAL_DATABASE.profile;
+          }
+          const doc = await col.findOne({ userId });
+          return doc || {
+            id: 'profile_' + userId,
+            userId,
+            personal: { fullName: 'MoneyMate Member', firstName: 'Member', lastName: '', bio: '', avatarUrl: '' },
+            contact: { email: '', mobile: '', city: 'India', country: 'India' },
+            financial: { currency: 'INR', currencySymbol: '₹', monthlyIncome: 50000, monthlyBudget: 25000, savingsTarget: 15000 },
+            appearance: { theme: 'dark', accentColor: 'emerald' },
+            tier: 'Private Wealth Member'
+          };
         }
-        return await col.find({}).toArray();
+
+        const query = isUday ? { $or: [{ userId: 'user_uday_01' }, { userId: { $exists: false } }] } : { userId };
+        return await col.find(query).toArray();
       } catch (e) {
         console.warn('Mongo read error, reading local fallback', e);
       }
     }
+
     const db = this.readLocalDb();
-    return db[key] || INITIAL_DATABASE[key] || [];
+    if (key === 'profile') {
+      if (isUday) return db.profile || INITIAL_DATABASE.profile;
+      if (db.profiles && db.profiles[userId]) return db.profiles[userId];
+      return {
+        id: 'profile_' + userId,
+        userId,
+        personal: { fullName: 'MoneyMate Member', firstName: 'Member', lastName: '', bio: '', avatarUrl: '' },
+        contact: { email: '', mobile: '', city: 'India', country: 'India' },
+        financial: { currency: 'INR', currencySymbol: '₹', monthlyIncome: 50000, monthlyBudget: 25000, savingsTarget: 15000 },
+        appearance: { theme: 'dark', accentColor: 'emerald' },
+        tier: 'Private Wealth Member'
+      };
+    }
+    const allItems = db[key] || INITIAL_DATABASE[key] || [];
+    if (!Array.isArray(allItems)) return [];
+    return allItems.filter((i) => (isUday ? (!i.userId || i.userId === 'user_uday_01') : i.userId === userId));
   }
 
-  // Generic Save / Update Entity
-  async set(key, value) {
+  // Multi-Tenant Save / Update Entity scoped by userId
+  async set(key, value, userId = 'user_uday_01') {
+    const isUday = !userId || userId === 'user_uday_01';
+
     if (this.isMongoConnected && this.mongoDb) {
       try {
         const col = this.mongoDb.collection(key);
         if (key === 'profile') {
-          await col.replaceOne({ id: 'uday_pedakota_01' }, value, { upsert: true });
+          if (isUday) {
+            await col.replaceOne({ id: 'uday_pedakota_01' }, { ...value, userId: 'user_uday_01' }, { upsert: true });
+          } else {
+            await col.replaceOne({ userId }, { ...value, userId }, { upsert: true });
+          }
         }
       } catch (e) {
         console.warn('Mongo write error', e);
       }
     }
+
     const db = this.readLocalDb();
-    db[key] = value;
+    if (key === 'profile') {
+      if (isUday) {
+        db.profile = value;
+      } else {
+        if (!db.profiles) db.profiles = {};
+        db.profiles[userId] = value;
+      }
+    } else {
+      db[key] = value;
+    }
     this.writeLocalDb(db);
     return value;
   }
 
-  // Add Item to Array Collection
-  async addItem(collectionKey, item) {
+  // Add Item to Array Collection with userId
+  async addItem(collectionKey, item, userId = 'user_uday_01') {
+    const effectiveUserId = userId || 'user_uday_01';
     const newItem = {
       ...item,
       id: item.id || `item_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
+      userId: effectiveUserId,
       createdAt: new Date().toISOString()
     };
 
@@ -457,16 +507,19 @@ class DatabaseManager {
     if (!Array.isArray(db[collectionKey])) {
       db[collectionKey] = [];
     }
-    db[collectionKey].unshift(newItem); // newest first
+    db[collectionKey].unshift(newItem);
     this.writeLocalDb(db);
     return newItem;
   }
 
-  // Delete Item from Array Collection
-  async deleteItem(collectionKey, itemId) {
+  // Delete Item from Array Collection scoped by userId
+  async deleteItem(collectionKey, itemId, userId = 'user_uday_01') {
+    const isUday = !userId || userId === 'user_uday_01';
+    const query = isUday ? { id: itemId } : { id: itemId, userId };
+
     if (this.isMongoConnected && this.mongoDb) {
       try {
-        await this.mongoDb.collection(collectionKey).deleteOne({ id: itemId });
+        await this.mongoDb.collection(collectionKey).deleteOne(query);
       } catch (e) {
         console.warn('Mongo delete error', e);
       }
@@ -480,11 +533,14 @@ class DatabaseManager {
     return { success: true, id: itemId };
   }
 
-  // Update Item in Array Collection
-  async updateItem(collectionKey, itemId, partialUpdate) {
+  // Update Item in Array Collection scoped by userId
+  async updateItem(collectionKey, itemId, partialUpdate, userId = 'user_uday_01') {
+    const isUday = !userId || userId === 'user_uday_01';
+    const query = isUday ? { id: itemId } : { id: itemId, userId };
+
     if (this.isMongoConnected && this.mongoDb) {
       try {
-        await this.mongoDb.collection(collectionKey).updateOne({ id: itemId }, { $set: partialUpdate });
+        await this.mongoDb.collection(collectionKey).updateOne(query, { $set: partialUpdate });
       } catch (e) {
         console.warn('Mongo update error', e);
       }
@@ -498,7 +554,7 @@ class DatabaseManager {
     return partialUpdate;
   }
 
-  // User Authentication
+  // User Authentication: Find by username or email
   async findUser(usernameOrEmail) {
     const queryStr = (usernameOrEmail || '').trim();
     if (!queryStr) return null;
@@ -535,6 +591,152 @@ class DatabaseManager {
         (u.username && u.username.toLowerCase() === queryStr.toLowerCase()) ||
         (u.email && u.email.toLowerCase() === queryStr.toLowerCase())
     );
+  }
+
+  // Register New User & Setup isolated workspace
+  async registerUser({ fullName, username, email, mobile, password }) {
+    const cleanUsername = (username || '').trim().toLowerCase();
+    const cleanEmail = (email || '').trim().toLowerCase();
+    const cleanName = (fullName || cleanUsername).trim();
+
+    if (!cleanUsername || !password) {
+      throw new Error('Username and Password are required.');
+    }
+
+    const existing = await this.findUser(cleanUsername);
+    if (existing) {
+      throw new Error('An account with this username already exists. Please choose a different username.');
+    }
+
+    if (cleanEmail) {
+      const existingEmail = await this.findUser(cleanEmail);
+      if (existingEmail) {
+        throw new Error('An account with this email address already exists. Please sign in instead.');
+      }
+    }
+
+    const userId = `user_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`;
+    const newUser = {
+      id: userId,
+      username: cleanUsername,
+      email: cleanEmail || `${cleanUsername}@moneymate.app`,
+      mobile: mobile ? mobile.trim() : '',
+      password: password.trim(),
+      fullName: cleanName,
+      tier: 'Private Wealth Member',
+      createdAt: new Date().toISOString()
+    };
+
+    // 1. Insert into Users collection
+    if (this.isMongoConnected && this.mongoDb) {
+      try {
+        await this.mongoDb.collection('users').insertOne(newUser);
+      } catch (e) {
+        console.warn('Mongo insert user error:', e);
+      }
+    }
+
+    // 2. Setup user's isolated profile
+    const userProfile = {
+      id: `profile_${userId}`,
+      userId: userId,
+      personal: {
+        fullName: cleanName,
+        firstName: cleanName.split(' ')[0],
+        lastName: cleanName.split(' ').slice(1).join(' ') || '',
+        username: cleanUsername,
+        bio: 'Personal Money Ledger & Wealth Tracking',
+        avatarUrl: ''
+      },
+      contact: {
+        email: cleanEmail,
+        mobile: mobile || '',
+        city: 'India',
+        country: 'India'
+      },
+      financial: {
+        currency: 'INR',
+        currencySymbol: '₹',
+        monthlyIncome: 50000,
+        monthlyBudget: 25000,
+        savingsTarget: 15000,
+        financialGoal: 'Personal Wealth Building & Monthly Tracking'
+      },
+      appearance: {
+        theme: 'dark',
+        accentColor: 'emerald',
+        defaultTab: 'dashboard'
+      },
+      tier: 'Private Wealth Member',
+      updatedAt: new Date().toISOString()
+    };
+
+    if (this.isMongoConnected && this.mongoDb) {
+      try {
+        await this.mongoDb.collection('profile').insertOne(userProfile);
+      } catch (e) {
+        console.warn('Mongo insert profile error:', e);
+      }
+    }
+
+    // 3. Setup user's 2 starter accounts (Cash & Bank)
+    const starterCash = {
+      id: `acc_${Date.now()}_cash`,
+      userId: userId,
+      name: 'Cash in Hand (Wallet)',
+      type: 'cash',
+      institution: 'Physical Wallet',
+      maskedNumber: 'CASH',
+      balance: 0,
+      currency: 'INR',
+      status: 'primary',
+      cardColor: 'linear-gradient(135deg, #059669 0%, #064e3b 100%)'
+    };
+
+    const starterBank = {
+      id: `acc_${Date.now()}_bank`,
+      userId: userId,
+      name: 'Primary Savings Bank',
+      type: 'bank',
+      institution: 'Primary Bank',
+      maskedNumber: '•••• 1234',
+      balance: 0,
+      currency: 'INR',
+      status: 'active',
+      cardColor: 'linear-gradient(135deg, #0284c7 0%, #0369a1 100%)'
+    };
+
+    if (this.isMongoConnected && this.mongoDb) {
+      try {
+        await this.mongoDb.collection('accounts').insertMany([starterCash, starterBank]);
+      } catch (e) {
+        console.warn('Mongo insert starter accounts error:', e);
+      }
+    }
+
+    // Also update local DB fallback
+    const localDb = this.readLocalDb();
+    if (!Array.isArray(localDb.users)) localDb.users = [];
+    localDb.users.push(newUser);
+    if (!localDb.profiles) localDb.profiles = {};
+    localDb.profiles[userId] = userProfile;
+    if (!Array.isArray(localDb.accounts)) localDb.accounts = [];
+    localDb.accounts.push(starterCash, starterBank);
+    this.writeLocalDb(localDb);
+
+    const token = `moneymate_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
+
+    return {
+      success: true,
+      token,
+      user: {
+        id: newUser.id,
+        username: newUser.username,
+        email: newUser.email,
+        fullName: newUser.fullName,
+        tier: newUser.tier
+      }
+    };
   }
 
   // Reset database back to default initial state

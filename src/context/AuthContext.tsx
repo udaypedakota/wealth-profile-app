@@ -9,11 +9,20 @@ interface AuthUser {
   tier?: string;
 }
 
+interface RegisterParams {
+  fullName: string;
+  username: string;
+  email?: string;
+  mobile?: string;
+  password: string;
+}
+
 interface AuthContextType {
   isAuthenticated: boolean;
   currentUser: AuthUser | null;
   token: string | null;
   login: (usernameOrEmail: string, password: string) => Promise<void>;
+  register: (data: RegisterParams) => Promise<void>;
   logout: () => void;
   isLoading: boolean;
 }
@@ -55,6 +64,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       if (res && res.success) {
         const authToken = res.token || `token_${Date.now()}`;
         const user = res.user || {
+          id: 'user_uday_01',
           username: usernameOrEmail,
           email: 'peddakotaudaykumar@gmail.com',
           fullName: 'Uday Pedakota'
@@ -67,6 +77,27 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         window.dispatchEvent(new CustomEvent('moneymate_auth_changed'));
       } else {
         throw new Error(res.error || 'Invalid credentials');
+      }
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const register = async (data: RegisterParams) => {
+    setIsLoading(true);
+    try {
+      const res = await ApiClient.register(data);
+      if (res && res.success) {
+        const authToken = res.token || `token_${Date.now()}`;
+        const user = res.user;
+
+        localStorage.setItem('moneymate_token', authToken);
+        localStorage.setItem('moneymate_user', JSON.stringify(user));
+        setToken(authToken);
+        setCurrentUser(user);
+        window.dispatchEvent(new CustomEvent('moneymate_auth_changed'));
+      } else {
+        throw new Error(res.error || 'Registration failed');
       }
     } finally {
       setIsLoading(false);
@@ -86,6 +117,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         currentUser,
         token,
         login,
+        register,
         logout,
         isLoading
       }}
