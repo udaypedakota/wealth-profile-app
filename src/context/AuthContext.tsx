@@ -64,10 +64,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       if (res && res.success) {
         const authToken = res.token || `token_${Date.now()}`;
         const user = res.user || {
-          id: 'user_uday_01',
+          id: `user_${Date.now()}`,
           username: usernameOrEmail,
-          email: 'peddakotaudaykumar@gmail.com',
-          fullName: 'Uday Pedakota'
+          email: `${usernameOrEmail}@moneymate.app`,
+          fullName: usernameOrEmail
         };
 
         localStorage.setItem('moneymate_token', authToken);
@@ -75,6 +75,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         setToken(authToken);
         setCurrentUser(user);
         window.dispatchEvent(new CustomEvent('moneymate_auth_changed'));
+        window.dispatchEvent(new CustomEvent('moneymate_data_changed'));
       } else {
         throw new Error(res.error || 'Invalid credentials');
       }
@@ -96,6 +97,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         setToken(authToken);
         setCurrentUser(user);
         window.dispatchEvent(new CustomEvent('moneymate_auth_changed'));
+        window.dispatchEvent(new CustomEvent('moneymate_data_changed'));
       } else {
         throw new Error(res.error || 'Registration failed');
       }

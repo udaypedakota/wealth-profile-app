@@ -9,13 +9,14 @@ function getCurrentUserId(): string {
       if (u && (u.id || u.username)) return u.id || u.username;
     }
   } catch {}
-  return 'user_uday_01';
+  return '';
 }
 
 function getLocal<T>(key: string, fallback: T): T {
   try {
     const userId = getCurrentUserId();
-    const item = localStorage.getItem(`${LOCAL_STORAGE_PREFIX}${userId}_${key}`) || localStorage.getItem(LOCAL_STORAGE_PREFIX + key);
+    if (!userId) return fallback;
+    const item = localStorage.getItem(`${LOCAL_STORAGE_PREFIX}${userId}_${key}`);
     return item ? JSON.parse(item) : fallback;
   } catch {
     return fallback;
@@ -25,32 +26,19 @@ function getLocal<T>(key: string, fallback: T): T {
 function setLocal<T>(key: string, data: T): void {
   try {
     const userId = getCurrentUserId();
+    if (!userId) return;
     localStorage.setItem(`${LOCAL_STORAGE_PREFIX}${userId}_${key}`, JSON.stringify(data));
   } catch (e) {
     console.warn('LocalStorage error:', e);
   }
 }
 
-// Default initial state for offline / direct browser operations
+// Default initial state for offline / direct browser operations (Clean state with zero cross-user pollution)
 const DEFAULT_INITIAL_STATE = {
   transactions: [],
   bills: [],
   emis: [],
-  chits: [
-    {
-      id: 'chit_3l_01',
-      name: '3L Chit',
-      title: '3L Chit',
-      totalAmount: 300000,
-      totalPotValue: 300000,
-      durationMonths: 20,
-      monthlyAmount: 15000,
-      monthlySubscription: 15000,
-      startDate: '2026-09-16',
-      status: 'Active',
-      payments: []
-    }
-  ],
+  chits: [],
   lending: [],
   accounts: [
     {
@@ -69,28 +57,11 @@ const DEFAULT_INITIAL_STATE = {
       name: 'Primary Bank Account',
       type: 'bank',
       institution: 'Primary Savings Bank',
-      maskedNumber: '•••• 5732',
+      maskedNumber: '•••• 1234',
       balance: 0,
       currency: 'INR',
       status: 'active',
       cardColor: 'linear-gradient(135deg, #0284c7 0%, #0369a1 100%)'
-    },
-    {
-      id: 'acc_card_03',
-      name: 'Primary Credit Card',
-      type: 'credit_card',
-      institution: 'HDFC / Bank Credit Line',
-      maskedNumber: '•••• 1998',
-      creditLimit: 100000,
-      usedAmount: 0,
-      balance: 0,
-      availableLimit: 100000,
-      dueDate: '15th of every month',
-      statementDate: '2nd of every month',
-      currency: 'INR',
-      status: 'active',
-      expiryDate: '03/29',
-      cardColor: 'linear-gradient(135deg, #1e1b4b 0%, #312e81 100%)'
     }
   ]
 };
@@ -137,6 +108,8 @@ export class ApiClient {
 
   static async syncLocalToCloud(): Promise<{ success: boolean; message: string; count: number }> {
     if (this.isSyncing) return { success: false, message: 'Sync already in progress', count: 0 };
+    const currentUserId = getCurrentUserId();
+    if (!currentUserId) return { success: false, message: 'Authentication required to sync', count: 0 };
     
     // Check health first
     const health = await this.checkCloudHealth();
@@ -394,7 +367,21 @@ export class ApiClient {
     } catch {}
     localStorage.removeItem('moneymate_token');
     localStorage.removeItem('moneymate_user');
+
+    // Wipe cached user keys to prevent any cross-session data leakage
+    try {
+      const keysToRemove: string[] = [];
+      for (let i = 0; i < localStorage.length; i++) {
+        const k = localStorage.key(i);
+        if (k && (k.startsWith(LOCAL_STORAGE_PREFIX) || k.startsWith('moneymate_profile_') || k === 'uday_wealth_user_profile')) {
+          keysToRemove.push(k);
+        }
+      }
+      keysToRemove.forEach((k) => localStorage.removeItem(k));
+    } catch {}
+
     window.dispatchEvent(new CustomEvent('moneymate_auth_changed'));
+    window.dispatchEvent(new CustomEvent('moneymate_data_changed'));
     return { success: true };
   }
 

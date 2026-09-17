@@ -5,10 +5,12 @@ import dns from 'dns';
 import { MongoClient } from 'mongodb';
 import dotenv from 'dotenv';
 
-// Use reliable DNS servers for MongoDB Atlas SRV resolution on Windows
-try {
-  dns.setServers(['8.8.8.8', '1.1.1.1']);
-} catch (e) {}
+// Use reliable DNS servers for MongoDB Atlas SRV resolution on Windows only
+if (process.platform === 'win32') {
+  try {
+    dns.setServers(['8.8.8.8', '1.1.1.1']);
+  } catch (e) {}
+}
 
 dotenv.config();
 
@@ -227,25 +229,121 @@ export const INITIAL_DATABASE = {
   ]
 };
 
+// Clean starter profile template for standard / new registered members (Zero data leakage from Uday)
+export const CLEAN_USER_PROFILE_TEMPLATE = {
+  personal: {
+    fullName: '',
+    firstName: '',
+    lastName: '',
+    username: '',
+    age: null,
+    dateOfBirth: '',
+    gender: '',
+    avatarUrl: '',
+    bio: 'Personal Money Ledger & Wealth Tracking'
+  },
+  contact: {
+    email: '',
+    mobile: '',
+    altMobile: '',
+    address: '',
+    city: '',
+    state: '',
+    country: 'India',
+    zipCode: ''
+  },
+  financial: {
+    currency: 'INR',
+    currencySymbol: '₹',
+    defaultAccountId: '',
+    monthlyIncome: 0,
+    monthlyBudget: 0,
+    savingsTarget: 0,
+    financialGoal: 'Personal Wealth Building & Systematic Savings',
+    preferredPaymentMethod: 'UPI',
+    riskAppetite: 'Moderate',
+    taxFilingStatus: 'Individual'
+  },
+  notifications: {
+    billReminders: true,
+    emiAlerts: true,
+    chitPayments: true,
+    creditCardDues: true,
+    upcomingPayments: true,
+    overduePayments: true,
+    budgetAlerts: true,
+    financialInsights: true,
+    emailNotifications: true,
+    smsNotifications: true,
+    pushNotifications: true
+  },
+  appearance: {
+    theme: 'dark',
+    density: 'comfortable',
+    accentColor: 'emerald',
+    defaultTab: 'dashboard',
+    animationsEnabled: true
+  },
+  security: {
+    hasPin: false,
+    twoFactorAuth: false,
+    maskBalances: false,
+    maskAccountNumbers: true,
+    lastLogin: 'Active Today',
+    activeSessions: []
+  },
+  memberSince: new Date().toISOString().split('T')[0],
+  tier: 'Private Wealth Member',
+  kycVerified: false,
+  accounts: [],
+  updatedAt: new Date().toISOString()
+};
+
+const DIRECT_MONGO_URI = 'mongodb://udaypedakota:Uday8329@ac-f5pro8o-shard-00-00.khqhjse.mongodb.net:27017,ac-f5pro8o-shard-00-01.khqhjse.mongodb.net:27017,ac-f5pro8o-shard-00-02.khqhjse.mongodb.net:27017/wealthapp?ssl=true&replicaSet=atlas-12ok2r-shard-0&authSource=admin&retryWrites=true&w=majority';
+const SRV_MONGO_URI = 'mongodb+srv://udaypedakota:Uday8329@cluster0.khqhjse.mongodb.net/wealthapp?retryWrites=true&w=majority&appName=Cluster0';
+
 class DatabaseManager {
   constructor() {
-    this.mongoClient = null;
-    this.mongoDb = null;
-    this.isMongoConnected = false;
+    this.mongoClient = global._mongoClient || null;
+    this.mongoDb = global._mongoDb || null;
+    this.isMongoConnected = !!(global._mongoClient && global._mongoDb);
     this.initPromise = this.init();
   }
 
   async init() {
-    const mongoUri = process.env.MONGODB_URI || 'mongodb+srv://udaypedakota:Uday8329@cluster0.khqhjse.mongodb.net/wealthapp?retryWrites=true&w=majority&appName=Cluster0';
-    if (mongoUri && mongoUri.startsWith('mongodb')) {
+    if (global._mongoDb && global._mongoClient) {
+      this.mongoClient = global._mongoClient;
+      this.mongoDb = global._mongoDb;
+      this.isMongoConnected = true;
+      return;
+    }
+
+    const urisToTry = [];
+    if (process.env.MONGODB_URI) urisToTry.push(process.env.MONGODB_URI);
+    // Direct URI connects fast and has zero SRV/UDP dependencies on cloud/serverless
+    urisToTry.push(DIRECT_MONGO_URI);
+    urisToTry.push(SRV_MONGO_URI);
+
+    const uniqueUris = [...new Set(urisToTry)];
+
+    for (const uri of uniqueUris) {
       try {
         console.log('Connecting to MongoDB Atlas cluster...');
-        this.mongoClient = new MongoClient(mongoUri);
+        this.mongoClient = new MongoClient(uri, { serverSelectionTimeoutMS: 5000 });
         await this.mongoClient.connect();
         this.mongoDb = this.mongoClient.db('wealthapp');
         this.isMongoConnected = true;
+        global._mongoClient = this.mongoClient;
+        global._mongoDb = this.mongoDb;
         console.log('✅ Connected successfully to MongoDB Atlas!');
+        break;
+      } catch (err) {
+        console.warn('⚠️ MongoDB Atlas connection attempt failed, trying fallback URI:', err.message);
+      }
+    }
 
+    if (this.isMongoConnected && this.mongoDb) {
+      try {
         // Ensure users collection exists with Uday Pedakota credentials in MongoDB Atlas
         const usersCol = this.mongoDb.collection('users');
         const defaultUser = {
@@ -384,21 +482,38 @@ class DatabaseManager {
           } else {
             doc = await col.findOne({ userId });
           }
-          const base = INITIAL_DATABASE.profile;
+
+          const base = isUday ? INITIAL_DATABASE.profile : CLEAN_USER_PROFILE_TEMPLATE;
+
           if (!doc) {
+            let registeredUser = null;
+            try {
+              registeredUser = await this.mongoDb.collection('users').findOne({ id: userId });
+            } catch {}
+
             return {
               ...base,
               id: 'profile_' + userId,
               userId,
-              personal: { ...base.personal, fullName: 'MoneyMate Member', firstName: 'Member', lastName: '', bio: '', avatarUrl: '' },
-              contact: { ...base.contact, email: '', mobile: '', city: 'India', country: 'India' },
-              financial: { ...base.financial, currency: 'INR', currencySymbol: '₹', monthlyIncome: 50000, monthlyBudget: 25000, savingsTarget: 15000 },
-              appearance: { ...base.appearance, theme: 'dark', accentColor: 'emerald' },
-              tier: 'Private Wealth Member',
-              security: { ...base.security, hasPin: false, twoFactorAuth: false },
+              personal: {
+                ...base.personal,
+                fullName: registeredUser?.fullName || 'MoneyMate Member',
+                firstName: (registeredUser?.fullName || 'Member').split(' ')[0],
+                lastName: (registeredUser?.fullName || '').split(' ').slice(1).join(' ') || '',
+                username: registeredUser?.username || 'user'
+              },
+              contact: {
+                ...base.contact,
+                email: registeredUser?.email || '',
+                mobile: registeredUser?.mobile || ''
+              },
+              financial: { ...base.financial },
+              appearance: { ...base.appearance },
+              security: { ...base.security },
               notifications: { ...base.notifications }
             };
           }
+
           return {
             ...base,
             ...doc,
@@ -411,7 +526,9 @@ class DatabaseManager {
           };
         }
 
-        const query = isUday ? { $or: [{ userId: 'user_uday_01' }, { userId: { $exists: false } }] } : { userId };
+        const query = isUday
+          ? { $or: [{ userId: 'user_uday_01' }, { userId: { $exists: false } }] }
+          : { userId };
         return await col.find(query).toArray();
       } catch (e) {
         console.warn('Mongo read error, reading local fallback', e);
@@ -426,18 +543,31 @@ class DatabaseManager {
       } else if (db.profiles && db.profiles[userId]) {
         doc = db.profiles[userId];
       }
-      const base = INITIAL_DATABASE.profile;
+      const base = isUday ? INITIAL_DATABASE.profile : CLEAN_USER_PROFILE_TEMPLATE;
       if (!doc) {
+        let registeredUser = null;
+        if (Array.isArray(db.users)) {
+          registeredUser = db.users.find((u) => u.id === userId);
+        }
         return {
           ...base,
           id: 'profile_' + userId,
           userId,
-          personal: { ...base.personal, fullName: 'MoneyMate Member', firstName: 'Member', lastName: '', bio: '', avatarUrl: '' },
-          contact: { ...base.contact, email: '', mobile: '', city: 'India', country: 'India' },
-          financial: { ...base.financial, currency: 'INR', currencySymbol: '₹', monthlyIncome: 50000, monthlyBudget: 25000, savingsTarget: 15000 },
-          appearance: { ...base.appearance, theme: 'dark', accentColor: 'emerald' },
-          tier: 'Private Wealth Member',
-          security: { ...base.security, hasPin: false, twoFactorAuth: false },
+          personal: {
+            ...base.personal,
+            fullName: registeredUser?.fullName || 'MoneyMate Member',
+            firstName: (registeredUser?.fullName || 'Member').split(' ')[0],
+            lastName: (registeredUser?.fullName || '').split(' ').slice(1).join(' ') || '',
+            username: registeredUser?.username || 'user'
+          },
+          contact: {
+            ...base.contact,
+            email: registeredUser?.email || '',
+            mobile: registeredUser?.mobile || ''
+          },
+          financial: { ...base.financial },
+          appearance: { ...base.appearance },
+          security: { ...base.security },
           notifications: { ...base.notifications }
         };
       }
@@ -452,7 +582,7 @@ class DatabaseManager {
         notifications: { ...base.notifications, ...(doc.notifications || {}) }
       };
     }
-    const allItems = db[key] || INITIAL_DATABASE[key] || [];
+    const allItems = isUday ? (db[key] || INITIAL_DATABASE[key] || []) : (db[key] || []);
     if (!Array.isArray(allItems)) return [];
     return allItems.filter((i) => (isUday ? (!i.userId || i.userId === 'user_uday_01') : i.userId === userId));
   }
@@ -595,10 +725,11 @@ class DatabaseManager {
     if (this.isMongoConnected && this.mongoDb) {
       try {
         const usersCol = this.mongoDb.collection('users');
+        const escaped = queryStr.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
         const user = await usersCol.findOne({
           $or: [
-            { username: { $regex: new RegExp(`^${queryStr}$`, 'i') } },
-            { email: { $regex: new RegExp(`^${queryStr}$`, 'i') } }
+            { username: { $regex: new RegExp(`^${escaped}$`, 'i') } },
+            { email: { $regex: new RegExp(`^${escaped}$`, 'i') } }
           ]
         });
         if (user) return user;
@@ -607,9 +738,9 @@ class DatabaseManager {
       }
     }
 
-    // Local fallback
+    // Local fallback with default Uday user guaranteed
     const localDb = this.readLocalDb();
-    const users = localDb.users || [
+    const defaultUsers = [
       {
         id: 'user_uday_01',
         username: 'udaypedakota',
@@ -619,10 +750,20 @@ class DatabaseManager {
       }
     ];
 
-    return users.find(
-      (u) =>
-        (u.username && u.username.toLowerCase() === queryStr.toLowerCase()) ||
-        (u.email && u.email.toLowerCase() === queryStr.toLowerCase())
+    let users = defaultUsers;
+    if (Array.isArray(localDb.users) && localDb.users.length > 0) {
+      users = [...localDb.users];
+      if (!users.some((u) => u.username === 'udaypedakota')) {
+        users.push(defaultUsers[0]);
+      }
+    }
+
+    return (
+      users.find(
+        (u) =>
+          (u.username && u.username.toLowerCase() === queryStr.toLowerCase()) ||
+          (u.email && u.email.toLowerCase() === queryStr.toLowerCase())
+      ) || null
     );
   }
 
@@ -670,11 +811,13 @@ class DatabaseManager {
       }
     }
 
-    // 2. Setup user's isolated profile
+    // 2. Setup user's isolated clean profile (No Uday data leakage)
     const userProfile = {
+      ...CLEAN_USER_PROFILE_TEMPLATE,
       id: `profile_${userId}`,
       userId: userId,
       personal: {
+        ...CLEAN_USER_PROFILE_TEMPLATE.personal,
         fullName: cleanName,
         firstName: cleanName.split(' ')[0],
         lastName: cleanName.split(' ').slice(1).join(' ') || '',
@@ -683,46 +826,19 @@ class DatabaseManager {
         avatarUrl: ''
       },
       contact: {
+        ...CLEAN_USER_PROFILE_TEMPLATE.contact,
         email: cleanEmail,
-        mobile: mobile || '',
-        city: 'India',
-        country: 'India'
+        mobile: mobile ? mobile.trim() : ''
       },
       financial: {
+        ...CLEAN_USER_PROFILE_TEMPLATE.financial,
         currency: 'INR',
         currencySymbol: '₹',
-        monthlyIncome: 50000,
-        monthlyBudget: 25000,
-        savingsTarget: 15000,
+        monthlyIncome: 0,
+        monthlyBudget: 0,
+        savingsTarget: 0,
         financialGoal: 'Personal Wealth Building & Monthly Tracking'
       },
-      appearance: {
-        theme: 'dark',
-        accentColor: 'emerald',
-        defaultTab: 'dashboard'
-      },
-      security: {
-        hasPin: false,
-        twoFactorAuth: false,
-        maskBalances: false,
-        maskAccountNumbers: true,
-        lastLogin: 'Today',
-        activeSessions: []
-      },
-      notifications: {
-        billReminders: true,
-        emiAlerts: true,
-        chitPayments: true,
-        creditCardDues: true,
-        upcomingPayments: true,
-        overduePayments: true,
-        budgetAlerts: true,
-        financialInsights: true,
-        emailNotifications: true,
-        smsNotifications: true,
-        pushNotifications: true
-      },
-      tier: 'Private Wealth Member',
       updatedAt: new Date().toISOString()
     };
 
@@ -734,7 +850,7 @@ class DatabaseManager {
       }
     }
 
-    // 3. Setup user's 2 starter accounts (Cash & Bank)
+    // 3. Setup user's 2 starter accounts (Cash & Bank) with 0 balance
     const starterCash = {
       id: `acc_${Date.now()}_cash`,
       userId: userId,
@@ -779,7 +895,8 @@ class DatabaseManager {
     localDb.accounts.push(starterCash, starterBank);
     this.writeLocalDb(localDb);
 
-    const token = `moneymate_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
+    // Embed userId into auth token for instant identification
+    const token = `moneymate_${userId}_${Date.now()}`;
 
     return {
       success: true,

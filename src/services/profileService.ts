@@ -11,46 +11,154 @@ import {
 import { INITIAL_DEMO_PROFILE } from './mockData';
 import { ApiClient } from './apiClient';
 
-const STORAGE_KEY = 'uday_wealth_user_profile';
+function getProfileStorageKey(): string {
+  try {
+    const userStr = localStorage.getItem('moneymate_user');
+    if (userStr) {
+      const u = JSON.parse(userStr);
+      if (u && (u.id || u.username)) return `moneymate_profile_${u.id || u.username}`;
+    }
+  } catch {}
+  return 'moneymate_profile_guest';
+}
+
+export const CLEAN_USER_PROFILE: UserProfile = {
+  id: '',
+  personal: {
+    fullName: 'MoneyMate Member',
+    firstName: 'Member',
+    lastName: '',
+    username: 'user',
+    dateOfBirth: '',
+    gender: 'Prefer not to say',
+    avatarUrl: '',
+    bio: 'Personal Money Ledger & Wealth Tracking'
+  },
+  contact: {
+    email: '',
+    mobile: '',
+    altMobile: '',
+    address: '',
+    city: '',
+    state: '',
+    country: 'India',
+    zipCode: ''
+  },
+  financial: {
+    currency: 'INR',
+    currencySymbol: '₹',
+    defaultAccountId: 'acc_cash_01',
+    monthlyIncome: 0,
+    monthlyBudget: 0,
+    savingsTarget: 0,
+    financialGoal: 'Systematic Personal Wealth Building',
+    preferredPaymentMethod: 'UPI',
+    riskAppetite: 'Moderate',
+    taxFilingStatus: 'Individual'
+  },
+  notifications: {
+    billReminders: true,
+    emiAlerts: true,
+    chitPayments: true,
+    creditCardDues: true,
+    upcomingPayments: true,
+    overduePayments: true,
+    budgetAlerts: true,
+    financialInsights: true,
+    emailNotifications: true,
+    smsNotifications: true,
+    pushNotifications: true
+  },
+  appearance: {
+    theme: 'dark',
+    density: 'comfortable',
+    accentColor: 'emerald',
+    defaultTab: 'dashboard',
+    animationsEnabled: true
+  },
+  security: {
+    hasPin: false,
+    twoFactorAuth: false,
+    maskBalances: false,
+    maskAccountNumbers: true,
+    lastLogin: 'Active Today',
+    activeSessions: []
+  },
+  accounts: [],
+  stats: {
+    totalTransactions: 0,
+    totalIncome: 0,
+    totalExpenses: 0,
+    totalSavings: 0,
+    totalBillsPaid: 0,
+    totalEmiPaid: 0,
+    totalChitPayments: 0,
+    totalCreditCardPayments: 0,
+    moneyLent: 0,
+    moneyReceived: 0,
+    moneyBorrowed: 0,
+    moneyRepaid: 0,
+    activeBills: 0,
+    activeEmis: 0,
+    creditCardsCount: 0,
+    accountsCount: 0
+  },
+  memberSince: new Date().toISOString().split('T')[0],
+  tier: 'Private Wealth Member',
+  kycVerified: false,
+  updatedAt: new Date().toISOString()
+};
 
 export function ensureValidProfile(raw?: Partial<UserProfile> | null): UserProfile {
-  if (!raw) return { ...INITIAL_DEMO_PROFILE };
+  let isUday = false;
+  try {
+    const userStr = localStorage.getItem('moneymate_user');
+    if (userStr) {
+      const u = JSON.parse(userStr);
+      if (u && (u.username === 'udaypedakota' || u.id === 'user_uday_01')) {
+        isUday = true;
+      }
+    }
+  } catch {}
+
+  const base = isUday ? INITIAL_DEMO_PROFILE : CLEAN_USER_PROFILE;
+  if (!raw) return { ...base };
 
   return {
-    ...INITIAL_DEMO_PROFILE,
+    ...base,
     ...raw,
     personal: {
-      ...INITIAL_DEMO_PROFILE.personal,
+      ...base.personal,
       ...(raw.personal || {})
     },
     contact: {
-      ...INITIAL_DEMO_PROFILE.contact,
+      ...base.contact,
       ...(raw.contact || {})
     },
     financial: {
-      ...INITIAL_DEMO_PROFILE.financial,
+      ...base.financial,
       ...(raw.financial || {})
     },
     notifications: {
-      ...INITIAL_DEMO_PROFILE.notifications,
+      ...base.notifications,
       ...(raw.notifications || {})
     },
     appearance: {
-      ...INITIAL_DEMO_PROFILE.appearance,
+      ...base.appearance,
       ...(raw.appearance || {})
     },
     security: {
-      ...INITIAL_DEMO_PROFILE.security,
+      ...base.security,
       ...(raw.security || {}),
       activeSessions: Array.isArray(raw.security?.activeSessions)
         ? raw.security.activeSessions
-        : (INITIAL_DEMO_PROFILE.security?.activeSessions || [])
+        : (base.security?.activeSessions || [])
     },
     accounts: Array.isArray(raw.accounts)
       ? raw.accounts
-      : (INITIAL_DEMO_PROFILE.accounts || []),
+      : (base.accounts || []),
     stats: {
-      ...INITIAL_DEMO_PROFILE.stats,
+      ...base.stats,
       ...(raw.stats || {})
     }
   };
@@ -58,12 +166,13 @@ export function ensureValidProfile(raw?: Partial<UserProfile> | null): UserProfi
 
 export class ProfileService {
   static async getProfile(): Promise<UserProfile> {
+    const storageKey = getProfileStorageKey();
     try {
       const serverProfile = await ApiClient.getProfile();
       if (serverProfile && (serverProfile.personal || serverProfile.id)) {
         const validated = ensureValidProfile(serverProfile);
         try {
-          localStorage.setItem(STORAGE_KEY, JSON.stringify(validated));
+          localStorage.setItem(storageKey, JSON.stringify(validated));
         } catch (e) {
           console.warn('LocalStorage quota warning:', e);
         }
@@ -74,7 +183,7 @@ export class ProfileService {
     }
 
     try {
-      const stored = localStorage.getItem(STORAGE_KEY);
+      const stored = localStorage.getItem(storageKey);
       if (stored) {
         return ensureValidProfile(JSON.parse(stored));
       }
@@ -82,17 +191,18 @@ export class ProfileService {
       // ignore
     }
 
-    return { ...INITIAL_DEMO_PROFILE };
+    return ensureValidProfile(null);
   }
 
   static async saveProfile(profile: UserProfile): Promise<UserProfile> {
+    const storageKey = getProfileStorageKey();
     const updated = {
       ...profile,
       updatedAt: new Date().toISOString()
     };
 
     try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
+      localStorage.setItem(storageKey, JSON.stringify(updated));
     } catch (e) {
       console.warn('LocalStorage quota warning while saving profile:', e);
     }
@@ -279,7 +389,7 @@ export class ProfileService {
   }
 
   static async resetDemoProfile(): Promise<UserProfile> {
-    localStorage.removeItem(STORAGE_KEY);
+    localStorage.removeItem(getProfileStorageKey());
     try {
       await ApiClient.resetData();
     } catch {}

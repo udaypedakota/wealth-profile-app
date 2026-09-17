@@ -39,7 +39,7 @@ interface ProfileContextType {
 const ProfileContext = createContext<ProfileContextType | undefined>(undefined);
 
 export const ProfileProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [profile, setProfile] = useState<UserProfile>(INITIAL_DEMO_PROFILE);
+  const [profile, setProfile] = useState<UserProfile>(() => ensureValidProfile(null));
   const [loading, setLoading] = useState<boolean>(true);
 
   // Load profile on mount
@@ -57,6 +57,10 @@ export const ProfileProvider: React.FC<{ children: React.ReactNode }> = ({ child
   useEffect(() => {
     refreshProfile();
 
+    const handleAuthChanged = () => {
+      refreshProfile();
+    };
+
     // Listen to custom cross-tab or cross-component sync events
     const handleProfileSync = (event: Event) => {
       const customEv = event as CustomEvent<UserProfile>;
@@ -66,7 +70,11 @@ export const ProfileProvider: React.FC<{ children: React.ReactNode }> = ({ child
     };
 
     window.addEventListener('zenith_profile_updated', handleProfileSync);
-    return () => window.removeEventListener('zenith_profile_updated', handleProfileSync);
+    window.addEventListener('moneymate_auth_changed', handleAuthChanged);
+    return () => {
+      window.removeEventListener('zenith_profile_updated', handleProfileSync);
+      window.removeEventListener('moneymate_auth_changed', handleAuthChanged);
+    };
   }, [refreshProfile]);
 
   // Actions

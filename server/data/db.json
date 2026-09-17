@@ -52,6 +52,84 @@
       "status": "active",
       "expiryDate": "03/29",
       "cardColor": "linear-gradient(135deg, #1e1b4b 0%, #312e81 100%)"
+    },
+    {
+      "id": "acc_1789623559808_cash",
+      "userId": "user_1789623559727_24qb",
+      "name": "Cash in Hand (Wallet)",
+      "type": "cash",
+      "institution": "Physical Wallet",
+      "maskedNumber": "CASH",
+      "balance": 0,
+      "currency": "INR",
+      "status": "primary",
+      "cardColor": "linear-gradient(135deg, #059669 0%, #064e3b 100%)",
+      "_id": "6aab7d0784fe2e8323c01278"
+    },
+    {
+      "id": "acc_1789623559808_bank",
+      "userId": "user_1789623559727_24qb",
+      "name": "Primary Savings Bank",
+      "type": "bank",
+      "institution": "Primary Bank",
+      "maskedNumber": "•••• 1234",
+      "balance": 0,
+      "currency": "INR",
+      "status": "active",
+      "cardColor": "linear-gradient(135deg, #0284c7 0%, #0369a1 100%)",
+      "_id": "6aab7d0784fe2e8323c01279"
+    },
+    {
+      "id": "acc_1789624344275_cash",
+      "userId": "user_1789624344216_odxe",
+      "name": "Cash in Hand (Wallet)",
+      "type": "cash",
+      "institution": "Physical Wallet",
+      "maskedNumber": "CASH",
+      "balance": 0,
+      "currency": "INR",
+      "status": "primary",
+      "cardColor": "linear-gradient(135deg, #059669 0%, #064e3b 100%)",
+      "_id": "6aab8018f7b1096804a6eab1"
+    },
+    {
+      "id": "acc_1789624344275_bank",
+      "userId": "user_1789624344216_odxe",
+      "name": "Primary Savings Bank",
+      "type": "bank",
+      "institution": "Primary Bank",
+      "maskedNumber": "•••• 1234",
+      "balance": 0,
+      "currency": "INR",
+      "status": "active",
+      "cardColor": "linear-gradient(135deg, #0284c7 0%, #0369a1 100%)",
+      "_id": "6aab8018f7b1096804a6eab2"
+    },
+    {
+      "id": "acc_1789624359364_cash",
+      "userId": "user_1789624359321_ez78",
+      "name": "Cash in Hand (Wallet)",
+      "type": "cash",
+      "institution": "Physical Wallet",
+      "maskedNumber": "CASH",
+      "balance": 0,
+      "currency": "INR",
+      "status": "primary",
+      "cardColor": "linear-gradient(135deg, #059669 0%, #064e3b 100%)",
+      "_id": "6aab8027f65768aeee743aac"
+    },
+    {
+      "id": "acc_1789624359364_bank",
+      "userId": "user_1789624359321_ez78",
+      "name": "Primary Savings Bank",
+      "type": "bank",
+      "institution": "Primary Bank",
+      "maskedNumber": "•••• 1234",
+      "balance": 0,
+      "currency": "INR",
+      "status": "active",
+      "cardColor": "linear-gradient(135deg, #0284c7 0%, #0369a1 100%)",
+      "_id": "6aab8027f65768aeee743aad"
     }
   ],
   "transactions": [],
@@ -73,6 +151,247 @@
     }
   ],
   "lending": [],
-  "users": [],
-  "profiles": {}
+  "users": [
+    {
+      "id": "user_uday_01",
+      "username": "udaypedakota",
+      "email": "peddakotaudaykumar@gmail.com",
+      "password": "Uday8329",
+      "fullName": "Uday Pedakota",
+      "tier": "Private Wealth Member",
+      "createdAt": "2026-09-16T10:37:41.364Z"
+    },
+    {
+      "id": "user_1789623559727_24qb",
+      "username": "testuser_1789623559655",
+      "email": "test1789623559655@example.com",
+      "mobile": "",
+      "password": "password123",
+      "fullName": "Test User New",
+      "tier": "Private Wealth Member",
+      "createdAt": "2026-09-17T05:39:19.727Z",
+      "_id": "6aab7d0784fe2e8323c01276"
+    },
+    {
+      "id": "user_1789624344216_odxe",
+      "username": "kiran_1789624344165",
+      "email": "kiran1789624344165@gmail.com",
+      "mobile": "9876543210",
+      "password": "password456",
+      "fullName": "Kiran Kumar",
+      "tier": "Private Wealth Member",
+      "createdAt": "2026-09-17T05:52:24.216Z",
+      "_id": "6aab8018f7b1096804a6eaaf"
+    },
+    {
+      "id": "user_1789624359321_ez78",
+      "username": "priya_1789624358480",
+      "email": "priya1789624358480@gmail.com",
+      "mobile": "",
+      "password": "priyapassword",
+      "fullName": "Priya Sharma",
+      "tier": "Private Wealth Member",
+      "createdAt": "2026-09-17T05:52:39.321Z",
+      "_id": "6aab8027f65768aeee743aaa"
+    }
+  ],
+  "profiles": {
+    "user_1789623559727_24qb": {
+      "id": "profile_user_1789623559727_24qb",
+      "userId": "user_1789623559727_24qb",
+      "personal": {
+        "fullName": "Test User New",
+        "firstName": "Test",
+        "lastName": "User New",
+        "username": "testuser_1789623559655",
+        "bio": "Personal Money Ledger & Wealth Tracking",
+        "avatarUrl": ""
+      },
+      "contact": {
+        "email": "test1789623559655@example.com",
+        "mobile": "",
+        "city": "India",
+        "country": "India"
+      },
+      "financial": {
+        "currency": "INR",
+        "currencySymbol": "₹",
+        "monthlyIncome": 50000,
+        "monthlyBudget": 25000,
+        "savingsTarget": 15000,
+        "financialGoal": "Personal Wealth Building & Monthly Tracking"
+      },
+      "appearance": {
+        "theme": "dark",
+        "accentColor": "emerald",
+        "defaultTab": "dashboard"
+      },
+      "security": {
+        "hasPin": false,
+        "twoFactorAuth": false,
+        "maskBalances": false,
+        "maskAccountNumbers": true,
+        "lastLogin": "Today",
+        "activeSessions": []
+      },
+      "notifications": {
+        "billReminders": true,
+        "emiAlerts": true,
+        "chitPayments": true,
+        "creditCardDues": true,
+        "upcomingPayments": true,
+        "overduePayments": true,
+        "budgetAlerts": true,
+        "financialInsights": true,
+        "emailNotifications": true,
+        "smsNotifications": true,
+        "pushNotifications": true
+      },
+      "tier": "Private Wealth Member",
+      "updatedAt": "2026-09-17T05:39:19.750Z",
+      "_id": "6aab7d0784fe2e8323c01277"
+    },
+    "user_1789624344216_odxe": {
+      "personal": {
+        "fullName": "Kiran Kumar",
+        "firstName": "Kiran",
+        "lastName": "Kumar",
+        "username": "kiran_1789624344165",
+        "age": null,
+        "dateOfBirth": "",
+        "gender": "",
+        "avatarUrl": "",
+        "bio": "Personal Money Ledger & Wealth Tracking"
+      },
+      "contact": {
+        "email": "kiran1789624344165@gmail.com",
+        "mobile": "9876543210",
+        "altMobile": "",
+        "address": "",
+        "city": "",
+        "state": "",
+        "country": "India",
+        "zipCode": ""
+      },
+      "financial": {
+        "currency": "INR",
+        "currencySymbol": "₹",
+        "defaultAccountId": "",
+        "monthlyIncome": 0,
+        "monthlyBudget": 0,
+        "savingsTarget": 0,
+        "financialGoal": "Personal Wealth Building & Monthly Tracking",
+        "preferredPaymentMethod": "UPI",
+        "riskAppetite": "Moderate",
+        "taxFilingStatus": "Individual"
+      },
+      "notifications": {
+        "billReminders": true,
+        "emiAlerts": true,
+        "chitPayments": true,
+        "creditCardDues": true,
+        "upcomingPayments": true,
+        "overduePayments": true,
+        "budgetAlerts": true,
+        "financialInsights": true,
+        "emailNotifications": true,
+        "smsNotifications": true,
+        "pushNotifications": true
+      },
+      "appearance": {
+        "theme": "dark",
+        "density": "comfortable",
+        "accentColor": "emerald",
+        "defaultTab": "dashboard",
+        "animationsEnabled": true
+      },
+      "security": {
+        "hasPin": false,
+        "twoFactorAuth": false,
+        "maskBalances": false,
+        "maskAccountNumbers": true,
+        "lastLogin": "Active Today",
+        "activeSessions": []
+      },
+      "memberSince": "2026-09-17",
+      "tier": "Private Wealth Member",
+      "kycVerified": false,
+      "accounts": [],
+      "updatedAt": "2026-09-17T05:52:24.247Z",
+      "id": "profile_user_1789624344216_odxe",
+      "userId": "user_1789624344216_odxe",
+      "_id": "6aab8018f7b1096804a6eab0"
+    },
+    "user_1789624359321_ez78": {
+      "personal": {
+        "fullName": "Priya Sharma",
+        "firstName": "Priya",
+        "lastName": "Sharma",
+        "username": "priya_1789624358480",
+        "age": null,
+        "dateOfBirth": "",
+        "gender": "",
+        "avatarUrl": "",
+        "bio": "Personal Money Ledger & Wealth Tracking"
+      },
+      "contact": {
+        "email": "priya1789624358480@gmail.com",
+        "mobile": "",
+        "altMobile": "",
+        "address": "",
+        "city": "",
+        "state": "",
+        "country": "India",
+        "zipCode": ""
+      },
+      "financial": {
+        "currency": "INR",
+        "currencySymbol": "₹",
+        "defaultAccountId": "",
+        "monthlyIncome": 0,
+        "monthlyBudget": 0,
+        "savingsTarget": 0,
+        "financialGoal": "Personal Wealth Building & Monthly Tracking",
+        "preferredPaymentMethod": "UPI",
+        "riskAppetite": "Moderate",
+        "taxFilingStatus": "Individual"
+      },
+      "notifications": {
+        "billReminders": true,
+        "emiAlerts": true,
+        "chitPayments": true,
+        "creditCardDues": true,
+        "upcomingPayments": true,
+        "overduePayments": true,
+        "budgetAlerts": true,
+        "financialInsights": true,
+        "emailNotifications": true,
+        "smsNotifications": true,
+        "pushNotifications": true
+      },
+      "appearance": {
+        "theme": "dark",
+        "density": "comfortable",
+        "accentColor": "emerald",
+        "defaultTab": "dashboard",
+        "animationsEnabled": true
+      },
+      "security": {
+        "hasPin": false,
+        "twoFactorAuth": false,
+        "maskBalances": false,
+        "maskAccountNumbers": true,
+        "lastLogin": "Active Today",
+        "activeSessions": []
+      },
+      "memberSince": "2026-09-17",
+      "tier": "Private Wealth Member",
+      "kycVerified": false,
+      "accounts": [],
+      "updatedAt": "2026-09-17T05:52:39.344Z",
+      "id": "profile_user_1789624359321_ez78",
+      "userId": "user_1789624359321_ez78",
+      "_id": "6aab8027f65768aeee743aab"
+    }
+  }
 }

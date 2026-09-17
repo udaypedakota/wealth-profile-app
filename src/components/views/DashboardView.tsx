@@ -60,7 +60,11 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ onNavigatePage }) 
   useEffect(() => {
     loadDashboard();
     window.addEventListener('moneymate_data_changed', loadDashboard);
-    return () => window.removeEventListener('moneymate_data_changed', loadDashboard);
+    window.addEventListener('moneymate_auth_changed', loadDashboard);
+    return () => {
+      window.removeEventListener('moneymate_data_changed', loadDashboard);
+      window.removeEventListener('moneymate_auth_changed', loadDashboard);
+    };
   }, []);
 
   const openQuickAdd = (type: 'debit' | 'credit') => {

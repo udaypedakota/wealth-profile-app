@@ -8,7 +8,11 @@ dotenv.config();
 const app = express();
 const PORT = process.env.PORT || 5000;
 
-app.use(cors());
+app.use(cors({
+  origin: true,
+  credentials: true,
+  allowedHeaders: ['Content-Type', 'Authorization', 'x-user-id']
+}));
 app.use(express.json({ limit: '20mb' })); // Support base64 image uploads
 
 // Ensure /api prefix matches even if serverless environment strips it
@@ -21,6 +25,8 @@ app.use((req, res, next) => {
 
 // Helper to extract active userId from request headers or auth token
 function getUserId(req) {
+  if (req.userId) return req.userId;
+
   // 1. Check custom header x-user-id
   const headerUserId = req.headers['x-user-id'];
   if (headerUserId && typeof headerUserId === 'string' && headerUserId.trim()) {
@@ -36,20 +42,44 @@ function getUserId(req) {
   const auth = req.headers['authorization'] || '';
   if (auth.startsWith('Bearer moneymate_')) {
     const tokenBody = auth.replace('Bearer moneymate_', '');
-    if (tokenBody.startsWith('user_')) {
-      const match = tokenBody.match(/^(user_[a-zA-Z0-9_-]+?)_\d+$/);
-      if (match && match[1]) {
-        return match[1];
+    // token format: moneymate_${userId}_${timestamp}
+    const lastUnderscore = tokenBody.lastIndexOf('_');
+    if (lastUnderscore > 0) {
+      const extractedUserId = tokenBody.substring(0, lastUnderscore);
+      if (extractedUserId) {
+        return extractedUserId;
       }
     }
   }
 
-  // Default to Uday for backward compatibility
-  return 'user_uday_01';
+  return null;
 }
 
+// Global Auth guard middleware for all data endpoints
+app.use((req, res, next) => {
+  const publicPaths = ['/api/health', '/api/auth/login', '/api/auth/register', '/api/auth/logout', '/api/auth/me'];
+  const pathOnly = (req.path || req.url.split('?')[0]).toLowerCase();
+  if (publicPaths.some((p) => pathOnly === p || pathOnly.startsWith(p + '/'))) {
+    return next();
+  }
+  const userId = getUserId(req);
+  if (!userId) {
+    return res.status(401).json({ error: 'Unauthorized. Please sign in to access your financial records.' });
+  }
+  req.userId = userId;
+  next();
+});
+
 // Health check
-app.get('/api/health', (req, res) => {
+app.get('/api/health', async (req, res) => {
+  if (dbManager.initPromise) {
+    try {
+      await Promise.race([
+        dbManager.initPromise,
+        new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), 2000))
+      ]);
+    } catch {}
+  }
   res.json({
     status: 'online',
     app: 'MoneyMate - Multi-User Personal Wealth Server',
@@ -78,7 +108,7 @@ app.post('/api/auth/login', async (req, res) => {
       return res.status(401).json({ error: 'Incorrect password. Please try again.' });
     }
 
-    const userId = user.id || user._id;
+    const userId = user.id || user._id?.toString();
     // Create session token with userId embedded
     const token = `moneymate_${userId}_${Date.now()}`;
 
@@ -89,7 +119,7 @@ app.post('/api/auth/login', async (req, res) => {
         id: userId,
         username: user.username,
         email: user.email,
-        fullName: user.fullName || 'Uday Pedakota',
+        fullName: user.fullName || user.username,
         tier: user.tier || 'Private Wealth Member'
       }
     });
@@ -127,6 +157,9 @@ app.post('/api/auth/logout', (req, res) => {
 app.get('/api/auth/me', async (req, res) => {
   try {
     const userId = getUserId(req);
+    if (!userId) {
+      return res.json({ authenticated: false, user: null });
+    }
     const profile = await dbManager.get('profile', userId);
     res.json({
       authenticated: true,

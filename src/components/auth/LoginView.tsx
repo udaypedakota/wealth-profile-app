@@ -27,7 +27,7 @@ export const LoginView: React.FC = () => {
   const [mode, setMode] = useState<'signin' | 'register'>('signin');
 
   // Sign In States
-  const [usernameOrEmail, setUsernameOrEmail] = useState('udaypedakota');
+  const [usernameOrEmail, setUsernameOrEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [rememberMe, setRememberMe] = useState(true);
@@ -374,7 +374,7 @@ export const LoginView: React.FC = () => {
                       type="text"
                       className="form-input"
                       style={{ paddingLeft: '40px', fontSize: '0.92rem' }}
-                      placeholder="udaypedakota or friend's username"
+                      placeholder="Username or email address"
                       value={usernameOrEmail}
                       onChange={(e) => setUsernameOrEmail(e.target.value)}
                       required
