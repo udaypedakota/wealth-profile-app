@@ -143,7 +143,8 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ onNavigatePage }) 
     todayExpense: 0,
     thisMonthIncome: 0,
     thisMonthExpense: 0,
-    monthlyBudget: 35000,
+    monthlyIncome: 0,
+    monthlyBudget: 0,
     currencySymbol: '₹'
   };
 
@@ -206,7 +207,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ onNavigatePage }) 
               gap: '8px'
             }}
           >
-            <span>Welcome back, {data?.user?.firstName || 'Uday'}!</span>
+            <span>Welcome back, {data?.user?.firstName || 'Member'}!</span>
             <Sparkles size={16} color="#10b981" />
           </h1>
           <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginTop: '2px' }}>

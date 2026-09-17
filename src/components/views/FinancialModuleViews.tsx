@@ -1249,8 +1249,8 @@ export const AnalyticsView: React.FC = () => {
 
 export const BudgetsView: React.FC = () => {
   const { profile } = useProfile();
-  const [spent, setSpent] = useState(3700);
-  const budget = profile.financial?.monthlyBudget || 35000;
+  const [spent, setSpent] = useState(0);
+  const budget = Number(profile?.financial?.monthlyBudget || 0);
 
   useEffect(() => {
     ApiClient.getTransactions().then((list) => {
@@ -1261,7 +1261,7 @@ export const BudgetsView: React.FC = () => {
     });
   }, []);
 
-  const percent = Math.min(Math.round((spent / budget) * 100), 100);
+  const percent = budget > 0 ? Math.min(Math.round((spent / budget) * 100), 100) : 0;
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
@@ -1333,7 +1333,7 @@ export const ReportsView: React.FC = () => {
       <div className="section-top-header">
         <div>
           <h2 className="section-top-title"><span className="nav-emoji">📄</span> <span>Financial Reports & Export</span></h2>
-          <p className="section-top-subtitle">Personal statements and reports for Uday Pedakota</p>
+          <p className="section-top-subtitle">Personal statements and reports for {profile?.personal?.fullName || 'Member'}</p>
         </div>
       </div>
       <div className="card-grid-2col">

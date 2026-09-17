@@ -413,7 +413,7 @@ app.get('/api/dashboard', async (req, res) => {
         thisMonthIncome,
         thisMonthExpense,
         monthlyIncome: monthlySalary,
-        monthlyBudget: profile.financial?.monthlyBudget || 35000,
+        monthlyBudget: Number(profile.financial?.monthlyBudget || 0),
         currencySymbol: profile.financial?.currencySymbol || '₹'
       },
       categoryBreakdown,

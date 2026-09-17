@@ -546,8 +546,8 @@ export class ApiClient {
 
     return {
       user: {
-        fullName: profile?.personal?.fullName || 'Uday Pedakota',
-        firstName: profile?.personal?.firstName || 'Uday',
+        fullName: profile?.personal?.fullName || 'MoneyMate Member',
+        firstName: profile?.personal?.firstName || profile?.personal?.fullName?.split(' ')[0] || 'Member',
         avatarUrl: profile?.personal?.avatarUrl || '',
         tier: profile?.tier || 'Private Wealth Member'
       },
@@ -560,7 +560,7 @@ export class ApiClient {
         thisMonthIncome,
         thisMonthExpense,
         monthlyIncome: monthlySalary,
-        monthlyBudget: profile?.financial?.monthlyBudget || 35000,
+        monthlyBudget: Number(profile?.financial?.monthlyBudget || 0),
         currencySymbol: profile?.financial?.currencySymbol || '₹'
       },
       categoryBreakdown,

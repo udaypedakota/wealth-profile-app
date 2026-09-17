@@ -80,18 +80,12 @@ export const FinancialChartsSection: React.FC<FinancialChartsSectionProps> = ({
   const [activeView, setActiveView] = useState<'cashflow' | 'categories' | 'chits'>('cashflow');
   const [hoveredCategory, setHoveredCategory] = useState<string | null>(null);
 
-  // Fallback category breakdown if empty
-  const categories: CategoryItem[] = categoryBreakdown.length > 0
+  // Category breakdown (strictly dynamic - empty array for new users with no expenses)
+  const categories: CategoryItem[] = Array.isArray(categoryBreakdown) && categoryBreakdown.length > 0
     ? categoryBreakdown
-    : [
-        { category: 'Hostel & Stay', amount: 6500, percentage: 46 },
-        { category: 'Food & Groceries', amount: 3200, percentage: 23 },
-        { category: 'Medical & Health', amount: 3000, percentage: 21 },
-        { category: 'Transportation & Fuel', amount: 1000, percentage: 7 },
-        { category: 'Entertainment', amount: 300, percentage: 3 }
-      ];
+    : [];
 
-  const totalExpense = categories.reduce((sum, c) => sum + c.amount, 0) || balances.thisMonthExpense || 14000;
+  const totalExpense = categories.reduce((sum, c) => sum + c.amount, 0) || Number(balances.thisMonthExpense || 0);
 
   // Compute SVG Donut Chart Slices
   let cumulativePercent = 0;
@@ -108,13 +102,14 @@ export const FinancialChartsSection: React.FC<FinancialChartsSectionProps> = ({
     };
   });
 
-  // Monthly Budget calculations
-  const monthlySalary = balances.monthlyIncome || 60000;
-  const monthlyBudget = balances.monthlyBudget || 35000;
-  const spentThisMonth = balances.thisMonthExpense || totalExpense;
-  const budgetUtilization = Math.min(100, Math.round((spentThisMonth / monthlyBudget) * 100));
+  // Monthly Budget calculations (strictly dynamic - zero fallbacks for new users)
+  const monthlySalary = Number(balances.monthlyIncome || 0);
+  const monthlyBudget = Number(balances.monthlyBudget || 0);
+  const spentThisMonth = Number(balances.thisMonthExpense ?? totalExpense ?? 0);
+  const budgetUtilization = monthlyBudget > 0 ? Math.min(100, Math.round((spentThisMonth / monthlyBudget) * 100)) : 0;
   const budgetRemaining = Math.max(0, monthlyBudget - spentThisMonth);
   const projectedSavings = Math.max(0, monthlySalary - spentThisMonth);
+  const savingsRate = monthlySalary > 0 ? Math.round((projectedSavings / monthlySalary) * 100) : 0;
 
   return (
     <div
@@ -274,197 +269,248 @@ export const FinancialChartsSection: React.FC<FinancialChartsSectionProps> = ({
       </div>
 
       {/* =========================================================================
-          TAB 1: EXPENSE CATEGORIES (Interactive SVG Donut & Detailed Category Cards)
+          TAB 2: EXPENSE CATEGORIES (Interactive SVG Donut & Detailed Category Cards)
           ========================================================================= */}
       {activeView === 'categories' && (
-        <div
-          style={{
-            display: 'grid',
-            gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))',
-            gap: '24px',
-            alignItems: 'center'
-          }}
-        >
-          {/* Left: SVG Donut Chart */}
+        categories.length > 0 ? (
           <div
             style={{
+              display: 'grid',
+              gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))',
+              gap: '24px',
+              alignItems: 'center'
+            }}
+          >
+            {/* Left: SVG Donut Chart */}
+            <div
+              style={{
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'center',
+                justifyContent: 'center',
+                position: 'relative',
+                padding: '10px 0'
+              }}
+            >
+              <div style={{ position: 'relative', width: '200px', height: '200px' }}>
+                <svg
+                  viewBox="0 0 42 42"
+                  style={{
+                    width: '100%',
+                    height: '100%',
+                    transform: 'rotate(-90deg)',
+                    borderRadius: '50%',
+                    overflow: 'visible'
+                  }}
+                >
+                  {/* Background Track */}
+                  <circle
+                    cx="21"
+                    cy="21"
+                    r="15.91549430918954"
+                    fill="transparent"
+                    stroke="var(--border-subtle)"
+                    strokeWidth="4.5"
+                  />
+
+                  {/* Slices */}
+                  {donutSlices.map((slice, idx) => {
+                    const isHovered = hoveredCategory === slice.category;
+                    return (
+                      <circle
+                        key={idx}
+                        cx="21"
+                        cy="21"
+                        r="15.91549430918954"
+                        fill="transparent"
+                        stroke={slice.color.stroke}
+                        strokeWidth={isHovered ? '6.5' : '4.5'}
+                        strokeDasharray={slice.strokeDasharray}
+                        strokeDashoffset={slice.strokeDashoffset}
+                        style={{
+                          transition: 'all 0.3s ease',
+                          cursor: 'pointer',
+                          filter: isHovered ? `drop-shadow(0 0 6px ${slice.color.stroke})` : 'none'
+                        }}
+                        onMouseEnter={() => setHoveredCategory(slice.category)}
+                        onMouseLeave={() => setHoveredCategory(null)}
+                      />
+                    );
+                  })}
+                </svg>
+
+                {/* Center Donut Hub */}
+                <div
+                  style={{
+                    position: 'absolute',
+                    top: '50%',
+                    left: '50%',
+                    transform: 'translate(-50%, -50%)',
+                    textAlign: 'center',
+                    pointerEvents: 'none',
+                    width: '130px'
+                  }}
+                >
+                  <div style={{ fontSize: '0.7rem', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase' }}>
+                    {hoveredCategory || 'Total Spend'}
+                  </div>
+                  <div
+                    style={{
+                      fontFamily: 'var(--font-display)',
+                      fontSize: '1.25rem',
+                      fontWeight: 800,
+                      color: 'var(--text-primary)',
+                      marginTop: '2px'
+                    }}
+                  >
+                    {hoveredCategory
+                      ? formatCurrency(categories.find((c) => c.category === hoveredCategory)?.amount || 0, 'INR')
+                      : formatCurrency(totalExpense, 'INR')}
+                  </div>
+                  <div style={{ fontSize: '0.68rem', color: '#10b981', fontWeight: 600 }}>
+                    {hoveredCategory
+                      ? `${categories.find((c) => c.category === hoveredCategory)?.percentage}% of total`
+                      : `${categories.length} Categories`}
+                  </div>
+                </div>
+              </div>
+
+              <div style={{ marginTop: '12px', fontSize: '0.72rem', color: 'var(--text-muted)' }}>
+                Hover over slices or categories to inspect breakdown
+              </div>
+            </div>
+
+            {/* Right: Category List with percentage bars */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+              {categories.map((cat, idx) => {
+                const color = CATEGORY_COLORS[cat.category] || DEFAULT_COLOR;
+                const isHovered = hoveredCategory === cat.category;
+                return (
+                  <div
+                    key={idx}
+                    onMouseEnter={() => setHoveredCategory(cat.category)}
+                    onMouseLeave={() => setHoveredCategory(null)}
+                    style={{
+                      display: 'flex',
+                      flexDirection: 'column',
+                      padding: '10px 14px',
+                      borderRadius: 'var(--radius-sm)',
+                      background: isHovered ? color.bg : 'var(--bg-surface)',
+                      border: isHovered ? `1px solid ${color.stroke}` : '1px solid var(--border-subtle)',
+                      transition: 'all 0.2s ease',
+                      cursor: 'pointer'
+                    }}
+                  >
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '6px' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        <span
+                          style={{
+                            width: '10px',
+                            height: '10px',
+                            borderRadius: '50%',
+                            background: color.stroke
+                          }}
+                        />
+                        <span style={{ fontSize: '0.84rem', fontWeight: 700, color: 'var(--text-primary)' }}>
+                          {cat.category}
+                        </span>
+                      </div>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                        <span style={{ fontFamily: 'var(--font-display)', fontSize: '0.88rem', fontWeight: 800, color: 'var(--text-primary)' }}>
+                          {formatCurrency(cat.amount, 'INR')}
+                        </span>
+                        <span
+                          style={{
+                            fontSize: '0.72rem',
+                            fontWeight: 700,
+                            color: color.text,
+                            background: color.bg,
+                            padding: '2px 6px',
+                            borderRadius: 'var(--radius-xs)',
+                            minWidth: '36px',
+                            textAlign: 'center'
+                          }}
+                        >
+                          {cat.percentage}%
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* Horizontal mini bar */}
+                    <div
+                      style={{
+                        width: '100%',
+                        height: '5px',
+                        background: 'var(--border-subtle)',
+                        borderRadius: 'var(--radius-full)',
+                        overflow: 'hidden'
+                      }}
+                    >
+                      <div
+                        style={{
+                          width: `${cat.percentage}%`,
+                          height: '100%',
+                          background: color.stroke,
+                          borderRadius: 'var(--radius-full)',
+                          transition: 'width 0.4s ease'
+                        }}
+                      />
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        ) : (
+          <div
+            style={{
+              padding: '36px 20px',
+              textAlign: 'center',
               display: 'flex',
               flexDirection: 'column',
               alignItems: 'center',
               justifyContent: 'center',
-              position: 'relative',
-              padding: '10px 0'
+              gap: '12px',
+              background: 'var(--bg-surface)',
+              borderRadius: 'var(--radius-md)',
+              border: '1px dashed var(--border-subtle)'
             }}
           >
-            <div style={{ position: 'relative', width: '200px', height: '200px' }}>
-              <svg
-                viewBox="0 0 42 42"
-                style={{
-                  width: '100%',
-                  height: '100%',
-                  transform: 'rotate(-90deg)',
-                  borderRadius: '50%',
-                  overflow: 'visible'
-                }}
-              >
-                {/* Background Track */}
-                <circle
-                  cx="21"
-                  cy="21"
-                  r="15.91549430918954"
-                  fill="transparent"
-                  stroke="var(--border-subtle)"
-                  strokeWidth="4.5"
-                />
-
-                {/* Slices */}
-                {donutSlices.map((slice, idx) => {
-                  const isHovered = hoveredCategory === slice.category;
-                  return (
-                    <circle
-                      key={idx}
-                      cx="21"
-                      cy="21"
-                      r="15.91549430918954"
-                      fill="transparent"
-                      stroke={slice.color.stroke}
-                      strokeWidth={isHovered ? '6.5' : '4.5'}
-                      strokeDasharray={slice.strokeDasharray}
-                      strokeDashoffset={slice.strokeDashoffset}
-                      style={{
-                        transition: 'all 0.3s ease',
-                        cursor: 'pointer',
-                        filter: isHovered ? `drop-shadow(0 0 6px ${slice.color.stroke})` : 'none'
-                      }}
-                      onMouseEnter={() => setHoveredCategory(slice.category)}
-                      onMouseLeave={() => setHoveredCategory(null)}
-                    />
-                  );
-                })}
-              </svg>
-
-              {/* Center Donut Hub */}
-              <div
-                style={{
-                  position: 'absolute',
-                  top: '50%',
-                  left: '50%',
-                  transform: 'translate(-50%, -50%)',
-                  textAlign: 'center',
-                  pointerEvents: 'none',
-                  width: '130px'
-                }}
-              >
-                <div style={{ fontSize: '0.7rem', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase' }}>
-                  {hoveredCategory || 'Total Spend'}
-                </div>
-                <div
-                  style={{
-                    fontFamily: 'var(--font-display)',
-                    fontSize: '1.25rem',
-                    fontWeight: 800,
-                    color: 'var(--text-primary)',
-                    marginTop: '2px'
-                  }}
-                >
-                  {hoveredCategory
-                    ? formatCurrency(categories.find((c) => c.category === hoveredCategory)?.amount || 0, 'INR')
-                    : formatCurrency(totalExpense, 'INR')}
-                </div>
-                <div style={{ fontSize: '0.68rem', color: '#10b981', fontWeight: 600 }}>
-                  {hoveredCategory
-                    ? `${categories.find((c) => c.category === hoveredCategory)?.percentage}% of total`
-                    : `${categories.length} Categories`}
-                </div>
+            <div
+              style={{
+                width: '44px',
+                height: '44px',
+                borderRadius: '50%',
+                background: 'rgba(59, 130, 246, 0.1)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                color: '#3b82f6'
+              }}
+            >
+              <PieChart size={22} />
+            </div>
+            <div>
+              <div style={{ fontSize: '0.95rem', fontWeight: 700, color: 'var(--text-primary)', marginBottom: '4px' }}>
+                No Expense Categories Recorded Yet
               </div>
+              <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)', margin: 0, maxWidth: '420px', lineHeight: 1.5 }}>
+                Record your daily expenses across categories like Food, Travel, Rent, and Utilities to visualize an interactive breakdown here.
+              </p>
             </div>
-
-            <div style={{ marginTop: '12px', fontSize: '0.72rem', color: 'var(--text-muted)' }}>
-              Hover over slices or categories to inspect breakdown
-            </div>
+            {onNavigateTab && (
+              <button
+                type="button"
+                className="btn btn-outline btn-sm"
+                onClick={() => onNavigateTab('transactions')}
+                style={{ fontSize: '0.78rem', padding: '6px 14px', gap: '6px' }}
+              >
+                <span>Record New Transaction</span>
+                <ArrowUpRight size={13} />
+              </button>
+            )}
           </div>
-
-          {/* Right: Category List with percentage bars */}
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-            {categories.map((cat, idx) => {
-              const color = CATEGORY_COLORS[cat.category] || DEFAULT_COLOR;
-              const isHovered = hoveredCategory === cat.category;
-              return (
-                <div
-                  key={idx}
-                  onMouseEnter={() => setHoveredCategory(cat.category)}
-                  onMouseLeave={() => setHoveredCategory(null)}
-                  style={{
-                    display: 'flex',
-                    flexDirection: 'column',
-                    padding: '10px 14px',
-                    borderRadius: 'var(--radius-sm)',
-                    background: isHovered ? color.bg : 'var(--bg-surface)',
-                    border: isHovered ? `1px solid ${color.stroke}` : '1px solid var(--border-subtle)',
-                    transition: 'all 0.2s ease',
-                    cursor: 'pointer'
-                  }}
-                >
-                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '6px' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                      <span
-                        style={{
-                          width: '10px',
-                          height: '10px',
-                          borderRadius: '50%',
-                          background: color.stroke
-                        }}
-                      />
-                      <span style={{ fontSize: '0.84rem', fontWeight: 700, color: 'var(--text-primary)' }}>
-                        {cat.category}
-                      </span>
-                    </div>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                      <span style={{ fontFamily: 'var(--font-display)', fontSize: '0.88rem', fontWeight: 800, color: 'var(--text-primary)' }}>
-                        {formatCurrency(cat.amount, 'INR')}
-                      </span>
-                      <span
-                        style={{
-                          fontSize: '0.72rem',
-                          fontWeight: 700,
-                          color: color.text,
-                          background: color.bg,
-                          padding: '2px 6px',
-                          borderRadius: 'var(--radius-xs)',
-                          minWidth: '36px',
-                          textAlign: 'center'
-                        }}
-                      >
-                        {cat.percentage}%
-                      </span>
-                    </div>
-                  </div>
-
-                  {/* Horizontal mini bar */}
-                  <div
-                    style={{
-                      width: '100%',
-                      height: '5px',
-                      background: 'var(--border-subtle)',
-                      borderRadius: 'var(--radius-full)',
-                      overflow: 'hidden'
-                    }}
-                  >
-                    <div
-                      style={{
-                        width: `${cat.percentage}%`,
-                        height: '100%',
-                        background: color.stroke,
-                        borderRadius: 'var(--radius-full)',
-                        transition: 'width 0.4s ease'
-                      }}
-                    />
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        </div>
+        )
       )}
 
       {/* =========================================================================
@@ -524,11 +570,11 @@ export const FinancialChartsSection: React.FC<FinancialChartsSectionProps> = ({
                     Monthly Salary Inflow
                   </span>
                   <span style={{ fontWeight: 800, color: '#10b981' }}>
-                    +{formatCurrency(monthlySalary, 'INR')} (100%)
+                    +{formatCurrency(monthlySalary, 'INR')} ({monthlySalary > 0 ? '100%' : '0%'})
                   </span>
                 </div>
                 <div style={{ width: '100%', height: '8px', background: 'rgba(255, 255, 255, 0.06)', borderRadius: 'var(--radius-full)', overflow: 'hidden' }}>
-                  <div style={{ width: '100%', height: '100%', background: 'linear-gradient(90deg, #10b981 0%, #059669 100%)', borderRadius: 'var(--radius-full)' }} />
+                  <div style={{ width: monthlySalary > 0 ? '100%' : '0%', height: '100%', background: 'linear-gradient(90deg, #10b981 0%, #059669 100%)', borderRadius: 'var(--radius-full)' }} />
                 </div>
               </div>
 
@@ -540,11 +586,11 @@ export const FinancialChartsSection: React.FC<FinancialChartsSectionProps> = ({
                     Monthly Budget Target
                   </span>
                   <span style={{ fontWeight: 800, color: '#3b82f6' }}>
-                    {formatCurrency(monthlyBudget, 'INR')} ({Math.round((monthlyBudget / monthlySalary) * 100)}%)
+                    {formatCurrency(monthlyBudget, 'INR')} ({monthlySalary > 0 ? Math.round((monthlyBudget / monthlySalary) * 100) : 0}%)
                   </span>
                 </div>
                 <div style={{ width: '100%', height: '8px', background: 'rgba(255, 255, 255, 0.06)', borderRadius: 'var(--radius-full)', overflow: 'hidden' }}>
-                  <div style={{ width: `${Math.min(100, Math.round((monthlyBudget / monthlySalary) * 100))}%`, height: '100%', background: 'linear-gradient(90deg, #3b82f6 0%, #1d4ed8 100%)', borderRadius: 'var(--radius-full)' }} />
+                  <div style={{ width: `${monthlySalary > 0 ? Math.min(100, Math.round((monthlyBudget / monthlySalary) * 100)) : 0}%`, height: '100%', background: 'linear-gradient(90deg, #3b82f6 0%, #1d4ed8 100%)', borderRadius: 'var(--radius-full)' }} />
                 </div>
               </div>
 
@@ -556,11 +602,11 @@ export const FinancialChartsSection: React.FC<FinancialChartsSectionProps> = ({
                     Actual Outflow (Cash + Cards)
                   </span>
                   <span style={{ fontWeight: 800, color: '#f43f5e' }}>
-                    -{formatCurrency(spentThisMonth, 'INR')} ({Math.round((spentThisMonth / monthlySalary) * 100)}%)
+                    -{formatCurrency(spentThisMonth, 'INR')} ({monthlySalary > 0 ? Math.round((spentThisMonth / monthlySalary) * 100) : 0}%)
                   </span>
                 </div>
                 <div style={{ width: '100%', height: '8px', background: 'rgba(255, 255, 255, 0.06)', borderRadius: 'var(--radius-full)', overflow: 'hidden' }}>
-                  <div style={{ width: `${Math.min(100, Math.round((spentThisMonth / monthlySalary) * 100))}%`, height: '100%', background: 'linear-gradient(90deg, #f43f5e 0%, #be123c 100%)', borderRadius: 'var(--radius-full)' }} />
+                  <div style={{ width: `${monthlySalary > 0 ? Math.min(100, Math.round((spentThisMonth / monthlySalary) * 100)) : 0}%`, height: '100%', background: 'linear-gradient(90deg, #f43f5e 0%, #be123c 100%)', borderRadius: 'var(--radius-full)' }} />
                 </div>
               </div>
 
@@ -572,14 +618,43 @@ export const FinancialChartsSection: React.FC<FinancialChartsSectionProps> = ({
                     Net Projected Savings
                   </span>
                   <span style={{ fontWeight: 800, color: '#8b5cf6' }}>
-                    {formatCurrency(projectedSavings, 'INR')} ({Math.round((projectedSavings / monthlySalary) * 100)}%)
+                    {formatCurrency(projectedSavings, 'INR')} ({monthlySalary > 0 ? Math.round((projectedSavings / monthlySalary) * 100) : 0}%)
                   </span>
                 </div>
                 <div style={{ width: '100%', height: '8px', background: 'rgba(255, 255, 255, 0.06)', borderRadius: 'var(--radius-full)', overflow: 'hidden' }}>
-                  <div style={{ width: `${Math.min(100, Math.round((projectedSavings / monthlySalary) * 100))}%`, height: '100%', background: 'linear-gradient(90deg, #8b5cf6 0%, #6d28d9 100%)', borderRadius: 'var(--radius-full)' }} />
+                  <div style={{ width: `${monthlySalary > 0 ? Math.min(100, Math.round((projectedSavings / monthlySalary) * 100)) : 0}%`, height: '100%', background: 'linear-gradient(90deg, #8b5cf6 0%, #6d28d9 100%)', borderRadius: 'var(--radius-full)' }} />
                 </div>
               </div>
             </div>
+
+            {monthlySalary === 0 && spentThisMonth === 0 && (
+              <div
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  padding: '10px 14px',
+                  borderRadius: 'var(--radius-sm)',
+                  background: 'rgba(59, 130, 246, 0.08)',
+                  border: '1px solid rgba(59, 130, 246, 0.2)',
+                  fontSize: '0.78rem',
+                  color: 'var(--text-secondary)'
+                }}
+              >
+                <span>💡 Set your monthly income and budget target in Settings to track your cash flow velocity.</span>
+                {onNavigateTab && (
+                  <button
+                    type="button"
+                    className="btn btn-outline btn-xs"
+                    onClick={() => onNavigateTab('settings')}
+                    style={{ fontSize: '0.72rem', padding: '3px 8px', gap: '4px' }}
+                  >
+                    <span>Configure</span>
+                    <ArrowUpRight size={12} />
+                  </button>
+                )}
+              </div>
+            )}
           </div>
 
           {/* Main Visual Multi-Stage Progress Bar */}
@@ -677,7 +752,7 @@ export const FinancialChartsSection: React.FC<FinancialChartsSectionProps> = ({
                 +{formatCurrency(monthlySalary, 'INR')}
               </div>
               <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', marginTop: '4px' }}>
-                Primary Monthly Salary
+                {monthlySalary > 0 ? 'Primary Monthly Salary' : 'Configure in Settings'}
               </div>
             </div>
 
@@ -749,7 +824,7 @@ export const FinancialChartsSection: React.FC<FinancialChartsSectionProps> = ({
                 {monthlySalary > 0 ? Math.round((projectedSavings / monthlySalary) * 100) : 0}%
               </div>
               <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', marginTop: '4px' }}>
-                High Tier Wealth Builder
+                {monthlySalary > 0 ? 'High Tier Wealth Builder' : 'Set Income in Settings'}
               </div>
             </div>
           </div>

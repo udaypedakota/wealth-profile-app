@@ -54,12 +54,13 @@ export const NotificationsDrawer: React.FC<NotificationsDrawerProps> = ({
   }, [isOpen]);
 
   // Construct dynamic authentic notifications
+  const userName = profile?.personal?.fullName || 'Authorized Member';
   const notifications: NotificationItem[] = [
     {
       id: 'notif_mongo_atlas',
       title: 'MongoDB Atlas Cloud Active',
       time: 'Just now',
-      desc: 'Encrypted TLS connection active on cluster0.khqhjse.mongodb.net for Uday Pedakota.',
+      desc: `Encrypted TLS connection active on cluster0.khqhjse.mongodb.net for ${userName}.`,
       icon: <ShieldCheck size={18} color="#10b981" />
     }
   ];
@@ -89,7 +90,7 @@ export const NotificationsDrawer: React.FC<NotificationsDrawerProps> = ({
     id: 'notif_session_verified',
     title: 'Private Wealth Session Verified',
     time: 'Today',
-    desc: 'Authorized session established with MongoDB Atlas credential udaypedakota.',
+    desc: 'Authorized session established with MongoDB Atlas secure credentials.',
     icon: <Sparkles size={18} color="#8b5cf6" />
   });
 
