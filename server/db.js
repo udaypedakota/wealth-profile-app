@@ -197,18 +197,7 @@ export const INITIAL_DATABASE = {
       category: 'Internet'
     }
   ],
-  emis: [
-    {
-      id: 'emi_1',
-      title: 'Two Wheeler / Personal Loan EMI',
-      lender: 'Bank Finance',
-      monthlyAmount: 4500,
-      totalTenures: 24,
-      tenuresLeft: 14,
-      nextDue: new Date(Date.now() + 12 * 86400000).toISOString().split('T')[0],
-      status: 'Active'
-    }
-  ],
+  emis: [],
   chits: [
     {
       id: 'chit_3l_01',
@@ -476,15 +465,32 @@ class DatabaseManager {
     if (this.isMongoConnected && this.mongoDb) {
       try {
         const col = this.mongoDb.collection(key);
+        const { _id, ...cleanValue } = value || {};
         if (key === 'profile') {
           if (isUday) {
-            await col.replaceOne({ id: 'uday_pedakota_01' }, { ...value, userId: 'user_uday_01' }, { upsert: true });
+            await col.updateOne(
+              { id: 'uday_pedakota_01' },
+              { $set: { ...cleanValue, id: 'uday_pedakota_01', userId: 'user_uday_01' } },
+              { upsert: true }
+            );
           } else {
-            await col.replaceOne({ userId }, { ...value, userId }, { upsert: true });
+            await col.updateOne(
+              { userId },
+              { $set: { ...cleanValue, userId } },
+              { upsert: true }
+            );
           }
+          console.log(`✅ [MongoDB Atlas] Successfully persisted ${key} for ${userId}`);
+        } else {
+          // If setting other direct objects
+          await col.updateOne(
+            isUday ? { id: cleanValue.id || 'primary' } : { userId, id: cleanValue.id || 'primary' },
+            { $set: cleanValue },
+            { upsert: true }
+          );
         }
       } catch (e) {
-        console.warn('Mongo write error', e);
+        console.warn('⚠️ Mongo write error:', e.message);
       }
     }
 
@@ -507,8 +513,9 @@ class DatabaseManager {
   async addItem(collectionKey, item, userId = 'user_uday_01') {
     if (this.initPromise) await this.initPromise;
     const effectiveUserId = userId || 'user_uday_01';
+    const { _id, ...cleanItem } = item || {};
     const newItem = {
-      ...item,
+      ...cleanItem,
       id: item.id || `item_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
       userId: effectiveUserId,
       createdAt: new Date().toISOString()
@@ -517,8 +524,9 @@ class DatabaseManager {
     if (this.isMongoConnected && this.mongoDb) {
       try {
         await this.mongoDb.collection(collectionKey).insertOne(newItem);
+        console.log(`✅ [MongoDB Atlas] Inserted item into ${collectionKey}: ${newItem.id}`);
       } catch (e) {
-        console.warn('Mongo insert error', e);
+        console.warn('⚠️ Mongo insert error:', e.message);
       }
     }
 
@@ -540,8 +548,9 @@ class DatabaseManager {
     if (this.isMongoConnected && this.mongoDb) {
       try {
         await this.mongoDb.collection(collectionKey).deleteOne(query);
+        console.log(`✅ [MongoDB Atlas] Deleted item from ${collectionKey}: ${itemId}`);
       } catch (e) {
-        console.warn('Mongo delete error', e);
+        console.warn('⚠️ Mongo delete error:', e.message);
       }
     }
 
@@ -558,18 +567,20 @@ class DatabaseManager {
     if (this.initPromise) await this.initPromise;
     const isUday = !userId || userId === 'user_uday_01';
     const query = isUday ? { id: itemId } : { id: itemId, userId };
+    const { _id, ...cleanPartial } = partialUpdate || {};
 
     if (this.isMongoConnected && this.mongoDb) {
       try {
-        await this.mongoDb.collection(collectionKey).updateOne(query, { $set: partialUpdate });
+        await this.mongoDb.collection(collectionKey).updateOne(query, { $set: cleanPartial });
+        console.log(`✅ [MongoDB Atlas] Updated item in ${collectionKey}: ${itemId}`);
       } catch (e) {
-        console.warn('Mongo update error', e);
+        console.warn('⚠️ Mongo update error:', e.message);
       }
     }
 
     const db = this.readLocalDb();
     if (Array.isArray(db[collectionKey])) {
-      db[collectionKey] = db[collectionKey].map((i) => (i.id === itemId ? { ...i, ...partialUpdate } : i));
+      db[collectionKey] = db[collectionKey].map((i) => (i.id === itemId ? { ...i, ...cleanPartial } : i));
       this.writeLocalDb(db);
     }
     return partialUpdate;

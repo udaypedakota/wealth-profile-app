@@ -22,7 +22,7 @@ export const EditProfileModal: React.FC<EditProfileModalProps> = ({
   onClose,
   initialTab = 'personal'
 }) => {
-  const { profile, updatePersonal, updateContact, updateFinancial } = useProfile();
+  const { profile, updateProfileData } = useProfile();
   const { success, error } = useToast();
 
   const [activeTab, setActiveTab] = useState<'personal' | 'contact' | 'financial'>(initialTab);
@@ -65,11 +65,13 @@ export const EditProfileModal: React.FC<EditProfileModalProps> = ({
 
     try {
       setIsSubmitting(true);
-      await updatePersonal(personalData);
-      await updateContact(contactData);
-      await updateFinancial(financialData);
+      await updateProfileData({
+        personal: personalData,
+        contact: contactData,
+        financial: financialData
+      });
 
-      success('Profile Saved', 'Your changes have been saved and applied across the portal.');
+      success('Profile Saved', 'Your changes have been saved to MongoDB Atlas cloud and applied across devices.');
       onClose();
     } catch {
       error('Save Failed', 'Could not save profile updates. Please try again.');

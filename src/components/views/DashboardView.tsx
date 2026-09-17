@@ -22,8 +22,10 @@ import {
   Receipt,
   HandCoins,
   Landmark,
-  Edit2
+  Edit2,
+  Info
 } from 'lucide-react';
+import { FinancialChartsSection } from '../dashboard/FinancialChartsSection';
 
 interface DashboardViewProps {
   onNavigatePage: (page: any) => void;
@@ -260,128 +262,16 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ onNavigatePage }) 
         </div>
       </div>
 
-      {/* Hero Financial Balance Cards (3 Columns) */}
-      <div className="card-grid-3col">
-        {/* Total Liquid Cash & Bank */}
-        <div className="premium-card glow-hover" style={{ borderLeft: '3px solid #10b981', padding: '14px 18px' }}>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
-            <span style={{ fontSize: '0.7rem', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-              Total Liquid Cash & Bank
-            </span>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-              <button
-                type="button"
-                onClick={handleOpenUpdateBalances}
-                style={{
-                  background: 'rgba(16, 185, 129, 0.1)',
-                  border: '1px solid rgba(16, 185, 129, 0.25)',
-                  color: '#10b981',
-                  borderRadius: 'var(--radius-xs)',
-                  padding: '2px 7px',
-                  fontSize: '0.68rem',
-                  fontWeight: 600,
-                  cursor: 'pointer',
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  gap: '4px'
-                }}
-                title="Update Cash & Bank Balances"
-              >
-                <Edit2 size={10} />
-                <span>Edit</span>
-              </button>
-              <div
-                style={{
-                  width: '28px',
-                  height: '28px',
-                  borderRadius: 'var(--radius-xs)',
-                  background: 'rgba(16, 185, 129, 0.12)',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  color: '#10b981'
-                }}
-              >
-                <Wallet size={15} />
-              </div>
-            </div>
-          </div>
-          <div style={{ fontFamily: 'var(--font-display)', fontSize: '1.45rem', fontWeight: 800, color: 'var(--text-primary)' }}>
-            {formatCurrency(balances.totalCashAndBank !== undefined ? balances.totalCashAndBank : 0, 'INR')}
-          </div>
-          <div style={{ fontSize: '0.74rem', color: 'var(--text-muted)', marginTop: '4px' }}>
-            Available in cash wallet & bank accounts
-            {balances.totalCreditCardDue > 0 && (
-              <span style={{ display: 'block', fontSize: '0.7rem', color: 'var(--text-muted)', marginTop: '2px' }}>
-                Net (Cash & Bank - Cards): <strong style={{ color: balances.totalNetWorth >= 0 ? '#10b981' : '#f43f5e' }}>{formatCurrency(balances.totalNetWorth, 'INR')}</strong>
-              </span>
-            )}
-          </div>
-        </div>
-
-        {/* Today's Expense */}
-        <div className="premium-card glow-hover" style={{ borderLeft: '3px solid #ef4444', padding: '14px 18px' }}>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
-            <span style={{ fontSize: '0.7rem', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-              Today's Expenses
-            </span>
-            <div
-              style={{
-                width: '28px',
-                height: '28px',
-                borderRadius: 'var(--radius-xs)',
-                background: 'rgba(239, 68, 68, 0.12)',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                color: '#ef4444'
-              }}
-            >
-              <TrendingDown size={15} />
-            </div>
-          </div>
-          <div style={{ fontFamily: 'var(--font-display)', fontSize: '1.45rem', fontWeight: 800, color: '#f43f5e' }}>
-            {formatCurrency(balances.todayExpense, 'INR')}
-          </div>
-          <div style={{ fontSize: '0.74rem', color: 'var(--text-muted)', marginTop: '4px' }}>
-            Real-time spend recorded today
-          </div>
-        </div>
-
-        {/* Monthly Inflow vs Outflow */}
-        <div className="premium-card glow-hover" style={{ borderLeft: '3px solid #3b82f6', padding: '14px 18px' }}>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
-            <span style={{ fontSize: '0.7rem', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-              Monthly Inflow vs Outflow
-            </span>
-            <div
-              style={{
-                width: '28px',
-                height: '28px',
-                borderRadius: 'var(--radius-xs)',
-                background: 'rgba(59, 130, 246, 0.12)',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                color: '#3b82f6'
-              }}
-            >
-              <Calendar size={15} />
-            </div>
-          </div>
-          <div style={{ display: 'flex', alignItems: 'baseline', gap: '10px' }}>
-            <span style={{ fontFamily: 'var(--font-display)', fontSize: '1.25rem', fontWeight: 800, color: '#10b981' }}>
-              +{formatCurrency(balances.thisMonthIncome, 'INR')}
-            </span>
-            <span style={{ fontFamily: 'var(--font-display)', fontSize: '0.95rem', color: '#f43f5e', fontWeight: 700 }}>
-              -{formatCurrency(balances.thisMonthExpense, 'INR')}
-            </span>
-          </div>
-          <div style={{ fontSize: '0.74rem', color: 'var(--text-muted)', marginTop: '4px' }}>
-            Monthly budget target: {formatCurrency(balances.monthlyBudget, 'INR')}
-          </div>
-        </div>
-      </div>
+      {/* ==========================================================================
+          INTERACTIVE VISUAL CHARTS SECTION (Requested by User - Inflow vs Outflow Chart, Categories & Chits)
+          ========================================================================== */}
+      <FinancialChartsSection
+        balances={balances}
+        categoryBreakdown={data?.categoryBreakdown}
+        chitsList={data?.chitsList}
+        creditCardData={sectionBreakdowns.creditCards}
+        onNavigateTab={onNavigatePage}
+      />
 
       {/* ==========================================================================
           FINANCIAL SECTIONS & COMMITMENTS BREAKDOWN (Requested by User)

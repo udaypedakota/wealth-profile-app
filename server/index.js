@@ -303,12 +303,18 @@ app.get('/api/dashboard', async (req, res) => {
       }
     });
 
-    // 6. Today's & Month's Cash Flow
+    // 6. Today's, Yesterday's & Month's Cash Flow
     let todayExpense = 0;
+    let yesterdayExpense = 0;
     let thisMonthExpense = 0;
     let thisMonthIncome = 0;
 
     const currentMonth = todayStr.substring(0, 7);
+    const yesterdayDate = new Date(Date.now() - 86400000).toISOString().split('T')[0];
+
+    // Category breakdown
+    const categoryMap = {};
+    let totalExpenseCategorized = 0;
 
     transactions.forEach((tx) => {
       const txDate = tx.date || '';
@@ -317,10 +323,41 @@ app.get('/api/dashboard', async (req, res) => {
       if (txDate === todayStr && tx.type === 'debit') {
         todayExpense += amount;
       }
+      if (txDate === yesterdayDate && tx.type === 'debit') {
+        yesterdayExpense += amount;
+      }
       if (txDate.startsWith(currentMonth)) {
         if (tx.type === 'debit') thisMonthExpense += amount;
         if (tx.type === 'credit') thisMonthIncome += amount;
       }
+      if (tx.type === 'debit') {
+        const cat = tx.category || 'Other Expense';
+        categoryMap[cat] = (categoryMap[cat] || 0) + amount;
+        totalExpenseCategorized += amount;
+      }
+    });
+
+    const categoryBreakdown = Object.entries(categoryMap)
+      .map(([category, amount]) => ({
+        category,
+        amount,
+        percentage: totalExpenseCategorized > 0 ? Math.round((amount / totalExpenseCategorized) * 100) : 0
+      }))
+      .sort((a, b) => b.amount - a.amount);
+
+    const chitsList = chits.map((c) => {
+      const totalAmt = Number(c.totalAmount || c.totalPotValue || 0);
+      const paid = Array.isArray(c.payments) ? c.payments.reduce((s, p) => s + (Number(p.amount) || 0), 0) : 0;
+      return {
+        id: c.id,
+        name: c.name || c.title || 'Chit Fund',
+        totalAmount: totalAmt,
+        paidAmount: paid,
+        remainingAmount: Math.max(0, totalAmt - paid),
+        progressPercent: totalAmt > 0 ? Math.min(100, Math.round((paid / totalAmt) * 100)) : 0,
+        monthlyAmount: Number(c.monthlyAmount || c.monthlySubscription || 0),
+        status: c.status || 'Active'
+      };
     });
 
     const monthlySalary = Number(profile.financial?.monthlyIncome || 0);
@@ -339,12 +376,15 @@ app.get('/api/dashboard', async (req, res) => {
         totalCashAndBank,
         totalCreditCardDue: totalCreditUsed,
         todayExpense,
+        yesterdayExpense,
         thisMonthIncome,
         thisMonthExpense,
         monthlyIncome: monthlySalary,
         monthlyBudget: profile.financial?.monthlyBudget || 35000,
         currencySymbol: profile.financial?.currencySymbol || '₹'
       },
+      categoryBreakdown,
+      chitsList,
       sectionBreakdowns: {
         creditCards: {
           totalLimit: totalCreditLimit,

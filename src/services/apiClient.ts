@@ -463,17 +463,36 @@ export class ApiClient {
 
     // 2. Transactions
     let todayExpense = 0;
+    let yesterdayExpense = 0;
     let thisMonthExpense = 0;
     let thisMonthIncome = 0;
+
+    const yesterdayDate = new Date(Date.now() - 86400000).toISOString().split('T')[0];
+    const categoryMap: Record<string, number> = {};
+    let totalExpenseCategorized = 0;
 
     transactions.forEach((tx: any) => {
       const amt = Number(tx.amount || 0);
       if (tx.date === todayStr && tx.type === 'debit') todayExpense += amt;
+      if (tx.date === yesterdayDate && tx.type === 'debit') yesterdayExpense += amt;
       if (tx.date && tx.date.startsWith(currentMonth)) {
         if (tx.type === 'debit') thisMonthExpense += amt;
         if (tx.type === 'credit') thisMonthIncome += amt;
       }
+      if (tx.type === 'debit') {
+        const cat = tx.category || 'Other Expense';
+        categoryMap[cat] = (categoryMap[cat] || 0) + amt;
+        totalExpenseCategorized += amt;
+      }
     });
+
+    const categoryBreakdown = Object.entries(categoryMap)
+      .map(([category, amount]) => ({
+        category,
+        amount,
+        percentage: totalExpenseCategorized > 0 ? Math.round((amount / totalExpenseCategorized) * 100) : 0
+      }))
+      .sort((a, b) => b.amount - a.amount);
 
     // 3. Bills
     let pendingBillsAmount = 0;
@@ -508,6 +527,21 @@ export class ApiClient {
     });
     const remainingChitPool = Math.max(0, totalChitPool - totalChitPaid);
 
+    const chitsList = chits.map((c: any) => {
+      const totalAmt = Number(c.totalAmount || c.totalPotValue || 0);
+      const paid = Array.isArray(c.payments) ? c.payments.reduce((s: number, p: any) => s + (Number(p.amount) || 0), 0) : 0;
+      return {
+        id: c.id,
+        name: c.name || c.title || 'Chit Fund',
+        totalAmount: totalAmt,
+        paidAmount: paid,
+        remainingAmount: Math.max(0, totalAmt - paid),
+        progressPercent: totalAmt > 0 ? Math.min(100, Math.round((paid / totalAmt) * 100)) : 0,
+        monthlyAmount: Number(c.monthlyAmount || c.monthlySubscription || 0),
+        status: c.status || 'Active'
+      };
+    });
+
     // 6. Lending
     let moneyLentTotal = 0;
     let moneyBorrowedTotal = 0;
@@ -535,12 +569,15 @@ export class ApiClient {
         totalCashAndBank,
         totalCreditCardDue: totalCreditUsed,
         todayExpense,
+        yesterdayExpense,
         thisMonthIncome,
         thisMonthExpense,
         monthlyIncome: monthlySalary,
         monthlyBudget: profile?.financial?.monthlyBudget || 35000,
         currencySymbol: profile?.financial?.currencySymbol || '₹'
       },
+      categoryBreakdown,
+      chitsList,
       sectionBreakdowns: {
         creditCards: {
           totalLimit: totalCreditLimit,

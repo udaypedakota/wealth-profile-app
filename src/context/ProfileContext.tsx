@@ -18,6 +18,7 @@ interface ProfileContextType {
   loading: boolean;
   completionPercentage: number;
   completionItems: ProfileCompletionItem[];
+  updateProfileData: (partial: Partial<UserProfile>) => Promise<void>;
   updatePersonal: (personal: PersonalInformation) => Promise<void>;
   updateContact: (contact: ContactInformation) => Promise<void>;
   updateFinancial: (financial: FinancialPreferences) => Promise<void>;
@@ -69,6 +70,11 @@ export const ProfileProvider: React.FC<{ children: React.ReactNode }> = ({ child
   }, [refreshProfile]);
 
   // Actions
+  const updateProfileData = useCallback(async (partial: Partial<UserProfile>) => {
+    const updated = await ProfileService.updateFullProfile(partial);
+    setProfile(updated);
+  }, []);
+
   const updatePersonal = useCallback(async (personal: PersonalInformation) => {
     const updated = await ProfileService.updatePersonal(personal);
     setProfile(updated);
@@ -172,8 +178,8 @@ export const ProfileProvider: React.FC<{ children: React.ReactNode }> = ({ child
       {
         id: 'contact_info',
         title: 'Verified Contact Details',
-        description: 'Primary email, mobile number & alternate phone',
-        completed: Boolean(contact?.email && contact?.mobile && contact?.altMobile),
+        description: 'Primary email & mobile number verified',
+        completed: Boolean(contact?.email && contact?.mobile),
         weight: 15,
         category: 'contact'
       },
@@ -213,9 +219,9 @@ export const ProfileProvider: React.FC<{ children: React.ReactNode }> = ({ child
       },
       {
         id: 'security_setup',
-        title: 'Security & 2-Factor Auth',
-        description: 'Security PIN configured and 2FA enabled',
-        completed: Boolean(security?.hasPin && security?.twoFactorAuth),
+        title: 'Security & Access PIN',
+        description: 'Security PIN configured or 2FA enabled',
+        completed: Boolean(security?.hasPin || security?.twoFactorAuth),
         weight: 10,
         category: 'security'
       }
@@ -238,6 +244,7 @@ export const ProfileProvider: React.FC<{ children: React.ReactNode }> = ({ child
         loading,
         completionPercentage,
         completionItems,
+        updateProfileData,
         updatePersonal,
         updateContact,
         updateFinancial,

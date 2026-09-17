@@ -48,7 +48,11 @@ export function ensureValidProfile(raw?: Partial<UserProfile> | null): UserProfi
     },
     accounts: Array.isArray(raw.accounts)
       ? raw.accounts
-      : (INITIAL_DEMO_PROFILE.accounts || [])
+      : (INITIAL_DEMO_PROFILE.accounts || []),
+    stats: {
+      ...INITIAL_DEMO_PROFILE.stats,
+      ...(raw.stats || {})
+    }
   };
 }
 
@@ -101,6 +105,39 @@ export class ProfileService {
 
     window.dispatchEvent(new CustomEvent('zenith_profile_updated', { detail: updated }));
     return updated;
+  }
+
+  static async updateFullProfile(partial: Partial<UserProfile>): Promise<UserProfile> {
+    const current = await this.getProfile();
+    const updated: UserProfile = {
+      ...current,
+      ...partial,
+      personal: {
+        ...current.personal,
+        ...(partial.personal || {})
+      },
+      contact: {
+        ...current.contact,
+        ...(partial.contact || {})
+      },
+      financial: {
+        ...current.financial,
+        ...(partial.financial || {})
+      },
+      notifications: {
+        ...current.notifications,
+        ...(partial.notifications || {})
+      },
+      appearance: {
+        ...current.appearance,
+        ...(partial.appearance || {})
+      },
+      security: {
+        ...current.security,
+        ...(partial.security || {})
+      }
+    };
+    return await this.saveProfile(updated);
   }
 
   static async updatePersonal(personal: PersonalInformation): Promise<UserProfile> {
