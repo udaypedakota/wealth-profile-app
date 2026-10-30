@@ -129,7 +129,8 @@ export function ensureValidProfile(raw?: Partial<UserProfile> | null): UserProfi
     ...raw,
     personal: {
       ...base.personal,
-      ...(raw.personal || {})
+      ...(raw.personal || {}),
+      avatarUrl: raw.personal?.avatarUrl || (raw as any)?.avatarUrl || base.personal?.avatarUrl || ''
     },
     contact: {
       ...base.contact,

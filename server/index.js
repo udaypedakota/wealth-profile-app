@@ -204,23 +204,32 @@ app.get('/api/profile', async (req, res) => {
       dbManager.get('bills', userId),
       dbManager.get('emis', userId)
     ]);
-    const creditCards = accounts.filter((a) => a.type === 'credit_card');
+    const creditCards = (accounts || []).filter((a) => a.type === 'credit_card');
+
+    let totalIncome = 0;
+    let totalExpenses = 0;
+
+    (transactions || []).forEach((tx) => {
+      if (tx.type === 'credit') totalIncome += Number(tx.amount || 0);
+      if (tx.type === 'debit') totalExpenses += Number(tx.amount || 0);
+    });
 
     res.json({
       ...profile,
-      accounts,
+      accounts: accounts || [],
       stats: {
-        totalTransactions: transactions.length,
+        totalTransactions: (transactions || []).length,
         totalIncome: totalIncome || profile.financial?.monthlyIncome || 0,
         totalExpenses: totalExpenses || 0,
         totalSavings: (totalIncome || profile.financial?.monthlyIncome || 0) - totalExpenses,
-        activeBills: bills.filter((b) => b.status !== 'Settled').length,
-        activeEmis: emis.length,
+        activeBills: (bills || []).filter((b) => b.status !== 'Settled').length,
+        activeEmis: (emis || []).length,
         creditCardsCount: creditCards.length,
-        accountsCount: accounts.length
+        accountsCount: (accounts || []).length
       }
     });
   } catch (err) {
+    console.error('Error fetching profile:', err);
     res.status(500).json({ error: err.message });
   }
 });
@@ -268,7 +277,7 @@ app.post('/api/profile/avatar', async (req, res) => {
 app.get('/api/dashboard', async (req, res) => {
   try {
     const userId = getUserId(req);
-    const [profile, accounts, transactions, bills, emis, chits, lending] = await Promise.all([
+    const [rawProfile, rawAccounts, rawTransactions, rawBills, rawEmis, rawChits, rawLending] = await Promise.all([
       dbManager.get('profile', userId),
       dbManager.get('accounts', userId),
       dbManager.get('transactions', userId),
@@ -277,6 +286,14 @@ app.get('/api/dashboard', async (req, res) => {
       dbManager.get('chits', userId),
       dbManager.get('lending', userId)
     ]);
+
+    const profile = rawProfile || {};
+    const accounts = Array.isArray(rawAccounts) ? rawAccounts : [];
+    const transactions = Array.isArray(rawTransactions) ? rawTransactions : [];
+    const bills = Array.isArray(rawBills) ? rawBills : [];
+    const emis = Array.isArray(rawEmis) ? rawEmis : [];
+    const chits = Array.isArray(rawChits) ? rawChits : [];
+    const lending = Array.isArray(rawLending) ? rawLending : [];
 
     const todayStr = new Date().toISOString().split('T')[0];
 
@@ -403,16 +420,16 @@ app.get('/api/dashboard', async (req, res) => {
       };
     });
 
-    const monthlySalary = Number(profile.financial?.monthlyIncome || 0);
+    const monthlySalary = Number(profile?.financial?.monthlyIncome || 0);
     const totalMonthlyCommitments = monthlyEmiTotal + monthlyChitsTotal + pendingBillsAmount + totalCreditUsed;
     const remainingDisposable = Math.max(0, monthlySalary - (monthlyEmiTotal + monthlyChitsTotal + pendingBillsAmount));
 
     res.json({
       user: {
-        fullName: profile.personal?.fullName || 'MoneyMate Member',
-        firstName: profile.personal?.firstName || 'Member',
-        avatarUrl: profile.personal?.avatarUrl || '',
-        tier: profile.tier || 'Private Wealth Member'
+        fullName: profile?.personal?.fullName || 'MoneyMate Member',
+        firstName: profile?.personal?.firstName || 'Member',
+        avatarUrl: profile?.personal?.avatarUrl || '',
+        tier: profile?.tier || 'Private Wealth Member'
       },
       balances: {
         totalNetWorth: totalCashAndBank - totalCreditUsed,
@@ -423,8 +440,8 @@ app.get('/api/dashboard', async (req, res) => {
         thisMonthIncome,
         thisMonthExpense,
         monthlyIncome: monthlySalary,
-        monthlyBudget: Number(profile.financial?.monthlyBudget || 0),
-        currencySymbol: profile.financial?.currencySymbol || '₹'
+        monthlyBudget: Number(profile?.financial?.monthlyBudget || 0),
+        currencySymbol: profile?.financial?.currencySymbol || '₹'
       },
       categoryBreakdown,
       chitsList,
