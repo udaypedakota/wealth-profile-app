@@ -128,45 +128,15 @@ export const CreditCardsView: React.FC = () => {
             const lim = Number(c.creditLimit || c.totalLimit || 100000);
             const used = Number(c.usedAmount !== undefined ? c.usedAmount : Math.abs(c.balance || 0));
             const avail = Math.max(0, lim - used);
-            let splits: CardSplitExpense[] = Array.isArray(c.splits) ? c.splits : [];
 
-            // Seed realistic demo splits if card has used amount but no recorded splits
-            if (splits.length === 0 && used > 0) {
-              if (c.maskedNumber?.includes('3003') || c.name?.toLowerCase().includes('canara')) {
-                splits = [
-                  {
-                    id: 'split_demo_1',
-                    personName: 'Self (Uday)',
-                    isSelf: true,
-                    amount: 14698,
-                    description: 'Amazon Electronics & Gadgets',
-                    date: '2026-10-24',
-                    status: 'settled',
-                    settledAt: '2026-10-24T10:00:00Z'
-                  },
-                  {
-                    id: 'split_demo_2',
-                    personName: 'Ravi (Friend)',
-                    isSelf: false,
-                    amount: 10000,
-                    description: 'Smartphone Purchase on Card Offer',
-                    date: '2026-10-26',
-                    status: 'pending'
-                  }
-                ];
-              } else if (c.maskedNumber?.includes('5361') || c.name?.toLowerCase().includes('cred')) {
-                splits = [
-                  {
-                    id: 'split_demo_3',
-                    personName: 'Suresh (Friend)',
-                    isSelf: false,
-                    amount: 5327,
-                    description: 'Indigo Flight Ticket Booking',
-                    date: '2026-10-27',
-                    status: 'pending'
-                  }
-                ];
-              }
+            // Filter out any legacy static dummy data so user can manage purely dynamic swiped records
+            const cleanSplits: CardSplitExpense[] = Array.isArray(c.splits)
+              ? c.splits.filter((s: any) => !s.id?.startsWith('split_demo_') && !s.personName?.includes('(Friend)'))
+              : [];
+
+            // Clean up legacy dummy data in database if found
+            if (Array.isArray(c.splits) && c.splits.length !== cleanSplits.length) {
+              ApiClient.updateAccount(c.id, { ...c, splits: cleanSplits }).catch(() => {});
             }
 
             return {
@@ -174,7 +144,7 @@ export const CreditCardsView: React.FC = () => {
               creditLimit: lim,
               usedAmount: used,
               availableLimit: avail,
-              splits
+              splits: cleanSplits
             };
           });
         setAccounts(creditCards);

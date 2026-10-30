@@ -174,7 +174,7 @@ const AppContent: React.FC = () => {
                   }}
                 />
               )}
-              <span style={{ fontSize: '0.74rem' }}>
+              <span className="cloud-badge-label" style={{ fontSize: '0.74rem' }}>
                 {isSyncing ? 'Syncing...' : cloudOnline ? 'MongoDB Atlas' : 'Offline'}
               </span>
             </div>

@@ -2287,27 +2287,31 @@ input, textarea, select {
     display: flex !important;
     align-items: center;
     gap: 8px;
+    flex-shrink: 0;
     cursor: pointer;
   }
 
   .mobile-app-brand-icon {
-    width: 32px;
-    height: 32px;
-    border-radius: 9px;
+    width: 30px;
+    height: 30px;
+    border-radius: 8px;
     background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
     color: #ffffff;
     display: flex;
     align-items: center;
     justify-content: center;
     box-shadow: 0 2px 8px rgba(37, 99, 235, 0.3);
+    flex-shrink: 0;
   }
 
   .mobile-app-brand-title {
-    font-size: 1.08rem;
+    font-size: 1.05rem;
     font-weight: 800;
     color: var(--text-primary);
     font-family: var(--font-display);
     letter-spacing: -0.01em;
+    white-space: nowrap !important;
+    flex-shrink: 0 !important;
   }
 
   .app-breadcrumbs {
@@ -2469,20 +2473,23 @@ input, textarea, select {
 
 @media (max-width: 768px) {
   .top-app-bar {
-    height: 58px;
-    padding: 0 14px;
-    gap: 10px;
+    height: 56px;
+    padding: 0 12px;
+    gap: 8px;
+    justify-content: space-between;
   }
 
   .app-bar-left {
-    gap: 10px;
-    min-width: 0;
-    flex: 1;
+    gap: 8px;
+    min-width: max-content;
+    flex: 0 0 auto;
+    overflow: visible;
   }
 
   .sidebar-toggle-btn {
-    width: 36px;
-    height: 36px;
+    width: 34px;
+    height: 34px;
+    flex-shrink: 0;
   }
 
   .breadcrumb-root,
@@ -2498,11 +2505,26 @@ input, textarea, select {
   .navbar-actions {
     gap: 6px;
     flex-shrink: 0;
+    margin-left: auto;
+  }
+
+  /* Compact cloud pulse status indicator on mobile/tablets */
+  .cloud-badge-label {
+    display: none !important;
+  }
+
+  .cloud-status-badge {
+    padding: 5px 8px !important;
+    height: 32px !important;
+    min-width: 32px !important;
+    gap: 0 !important;
+    border-radius: 9999px !important;
+    justify-content: center !important;
   }
 
   .nav-icon-btn {
-    width: 36px;
-    height: 36px;
+    width: 32px;
+    height: 32px;
     flex-shrink: 0;
   }
 
@@ -2573,18 +2595,38 @@ input, textarea, select {
 
 @media (max-width: 480px) {
   .top-app-bar {
-    height: 56px;
+    height: 54px;
     padding: 0 10px;
     gap: 6px;
+    justify-content: space-between;
   }
 
   .app-bar-left {
-    gap: 8px;
+    gap: 6px;
+    flex: 0 0 auto;
+    min-width: max-content;
+    overflow: visible;
   }
 
   .sidebar-toggle-btn {
-    width: 34px;
-    height: 34px;
+    width: 32px;
+    height: 32px;
+  }
+
+  .mobile-app-brand {
+    gap: 6px;
+  }
+
+  .mobile-app-brand-icon {
+    width: 28px;
+    height: 28px;
+    border-radius: 7px;
+  }
+
+  .mobile-app-brand-title {
+    font-size: 1rem;
+    white-space: nowrap !important;
+    flex-shrink: 0 !important;
   }
 
   .breadcrumb-emoji {
@@ -2597,12 +2639,12 @@ input, textarea, select {
   }
 
   .navbar-actions {
-    gap: 5px;
+    gap: 4px;
   }
 
   .nav-icon-btn {
-    width: 34px;
-    height: 34px;
+    width: 32px;
+    height: 32px;
   }
 
   .page-content-wrapper {
