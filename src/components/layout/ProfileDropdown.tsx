@@ -8,10 +8,7 @@ import {
   User,
   ShieldCheck,
   Settings,
-  CreditCard,
-  Palette,
-  LogOut,
-  Sparkles
+  LogOut
 } from 'lucide-react';
 
 interface ProfileDropdownProps {
@@ -22,10 +19,12 @@ export const ProfileDropdown: React.FC<ProfileDropdownProps> = ({ onNavigateTab 
   const [isOpen, setIsOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
   const { profile } = useProfile();
-  const { logout } = useAuth();
+  const { currentUser, logout } = useAuth();
   const { success } = useToast();
 
   const { personal, contact, tier, kycVerified } = profile;
+  const displayName = currentUser?.fullName || personal?.fullName || 'Private Member';
+  const displayEmail = currentUser?.email || contact?.email || '';
 
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
@@ -64,13 +63,13 @@ export const ProfileDropdown: React.FC<ProfileDropdownProps> = ({ onNavigateTab 
       >
         <ProfileAvatar
           avatarUrl={personal.avatarUrl}
-          fullName={personal.fullName}
+          fullName={displayName}
           size="sm"
           showStatusDot
         />
         <div className="profile-trigger-info">
-          <span className="profile-trigger-name">{personal.fullName}</span>
-          <span className="profile-trigger-role">{tier.split(' ')[0]} Member</span>
+          <span className="profile-trigger-name">{displayName}</span>
+          <span className="profile-trigger-role">{tier ? tier.split(' ')[0] : 'Private'} Member</span>
         </div>
         <ChevronDown
           size={16}
@@ -89,12 +88,12 @@ export const ProfileDropdown: React.FC<ProfileDropdownProps> = ({ onNavigateTab 
           <div className="dropdown-header-card">
             <ProfileAvatar
               avatarUrl={personal.avatarUrl}
-              fullName={personal.fullName}
+              fullName={displayName}
               size="md"
             />
             <div className="dropdown-user-details">
-              <div className="dropdown-user-name">{personal.fullName}</div>
-              <div className="dropdown-user-email">{contact.email}</div>
+              <div className="dropdown-user-name">{displayName}</div>
+              <div className="dropdown-user-email">{displayEmail}</div>
               {kycVerified && (
                 <span className="dropdown-kyc-pill">
                   <ShieldCheck size={11} /> KYC Verified
@@ -110,27 +109,7 @@ export const ProfileDropdown: React.FC<ProfileDropdownProps> = ({ onNavigateTab 
             role="menuitem"
           >
             <User size={16} color="var(--primary)" />
-            <span>View Client Profile</span>
-          </button>
-
-          <button
-            type="button"
-            className="dropdown-item"
-            onClick={() => handleSelect('financial')}
-            role="menuitem"
-          >
-            <CreditCard size={16} color="#3b82f6" />
-            <span>Financial Preferences & Cards</span>
-          </button>
-
-          <button
-            type="button"
-            className="dropdown-item"
-            onClick={() => handleSelect('security')}
-            role="menuitem"
-          >
-            <ShieldCheck size={16} color="#8b5cf6" />
-            <span>Security & Active Sessions</span>
+            <span>Profile & Account Info</span>
           </button>
 
           <button
@@ -139,8 +118,8 @@ export const ProfileDropdown: React.FC<ProfileDropdownProps> = ({ onNavigateTab 
             onClick={() => handleSelect('preferences')}
             role="menuitem"
           >
-            <Palette size={16} color="#f59e0b" />
-            <span>Appearance & Display Settings</span>
+            <Settings size={16} color="#64748b" />
+            <span>Account Settings</span>
           </button>
 
           <div className="dropdown-divider" />

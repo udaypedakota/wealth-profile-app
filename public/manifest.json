@@ -1,7 +1,7 @@
 {
   "short_name": "MoneyMate",
-  "name": "MoneyMate - Personal Wealth Manager",
-  "description": "Personal wealth and daily money ledger for Uday Pedakota",
+  "name": "MoneyMate - Private Wealth & Ledger",
+  "description": "Personal wealth ledger & daily money companion with private cloud workspaces.",
   "icons": [
     {
       "src": "/icon-192.png",
@@ -18,12 +18,13 @@
     {
       "src": "/apple-touch-icon.png",
       "type": "image/png",
-      "sizes": "180x180"
+      "sizes": "180x180",
+      "purpose": "any"
     }
   ],
   "start_url": "/",
-  "background_color": "#080c14",
-  "theme_color": "#080c14",
+  "background_color": "#f0f6ff",
+  "theme_color": "#0052cc",
   "display": "standalone",
   "orientation": "portrait"
 }

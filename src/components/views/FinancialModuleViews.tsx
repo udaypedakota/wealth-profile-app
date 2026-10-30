@@ -20,8 +20,56 @@ import {
   AlertCircle,
   Tag,
   Calendar as CalendarIcon,
-  Check
+  Check,
+  ShoppingBag,
+  Zap,
+  Fuel,
+  Landmark
 } from 'lucide-react';
+
+const getCategoryIconInfo = (category: string = '', type: string = 'debit') => {
+  const cat = category.toLowerCase();
+  if (cat.includes('salary') || cat.includes('income') || type === 'credit') {
+    return {
+      bg: 'rgba(16, 185, 129, 0.12)',
+      color: '#10b981',
+      icon: <Building2 size={20} />
+    };
+  }
+  if (cat.includes('food') || cat.includes('dining') || cat.includes('grocery') || cat.includes('supermarket') || cat.includes('shopping')) {
+    return {
+      bg: 'rgba(239, 68, 68, 0.12)',
+      color: '#ef4444',
+      icon: <ShoppingBag size={20} />
+    };
+  }
+  if (cat.includes('bill') || cat.includes('util') || cat.includes('electric') || cat.includes('power') || cat.includes('recharge') || cat.includes('wifi') || cat.includes('internet')) {
+    return {
+      bg: 'rgba(245, 158, 11, 0.14)',
+      color: '#f59e0b',
+      icon: <Zap size={20} />
+    };
+  }
+  if (cat.includes('fuel') || cat.includes('petrol') || cat.includes('transport') || cat.includes('bike') || cat.includes('car')) {
+    return {
+      bg: 'rgba(249, 115, 22, 0.14)',
+      color: '#f97316',
+      icon: <Fuel size={20} />
+    };
+  }
+  if (cat.includes('emi') || cat.includes('loan') || cat.includes('chit') || cat.includes('rent')) {
+    return {
+      bg: 'rgba(139, 92, 246, 0.14)',
+      color: '#8b5cf6',
+      icon: <Landmark size={20} />
+    };
+  }
+  return {
+    bg: 'rgba(59, 130, 246, 0.12)',
+    color: '#3b82f6',
+    icon: <Tag size={20} />
+  };
+};
 
 /* ==========================================================================
    1. TRANSACTIONS VIEW (Live & Interactive with Add Modal)
@@ -70,7 +118,10 @@ export const TransactionsView: React.FC = () => {
     return transactions.filter((tx) => {
       const titleMatch = (tx.title || '').toLowerCase().includes(searchTerm.toLowerCase());
       const catMatch = (tx.category || '').toLowerCase().includes(searchTerm.toLowerCase());
-      const typeMatch = filterType === 'all' || tx.type === filterType;
+      let typeMatch = true;
+      if (filterType === 'credit') typeMatch = tx.type === 'credit';
+      else if (filterType === 'debit') typeMatch = tx.type === 'debit';
+      else if (filterType === 'bills') typeMatch = (tx.category || '').toLowerCase().includes('bill') || (tx.category || '').toLowerCase().includes('util');
       return (titleMatch || catMatch) && typeMatch;
     });
   }, [transactions, searchTerm, filterType]);
@@ -111,37 +162,67 @@ export const TransactionsView: React.FC = () => {
         </div>
       </div>
 
-      {/* Filter Row */}
-      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '12px', alignItems: 'center' }}>
-        <div style={{ flex: 1, minWidth: '240px', position: 'relative' }}>
+      {/* Filter Row with Search & Pill Badges (All, Income, Expense, Bills matching mockup) */}
+      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '12px', alignItems: 'center', justifyContent: 'space-between' }}>
+        <div style={{ flex: '1 1 240px', minWidth: '220px', position: 'relative' }}>
           <Search size={16} style={{ position: 'absolute', left: '14px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }} />
           <input
             type="text"
             className="form-input"
-            style={{ paddingLeft: '38px' }}
+            style={{ paddingLeft: '38px', borderRadius: '9999px', background: 'var(--bg-surface)' }}
             placeholder="Search by description or category..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
           />
         </div>
-        <select
-          className="form-select"
-          style={{ width: 'auto', minWidth: '160px' }}
-          value={filterType}
-          onChange={(e) => setFilterType(e.target.value)}
+
+        {/* 4 Filter Pills (All, Income, Expense, Bills) */}
+        <div
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            background: 'var(--bg-surface)',
+            padding: '4px',
+            borderRadius: '9999px',
+            border: '1px solid var(--border-subtle)',
+            gap: '3px'
+          }}
         >
-          <option value="all">All Transactions</option>
-          <option value="credit">Credits (Income)</option>
-          <option value="debit">Debits (Expenses)</option>
-        </select>
+          {[
+            { id: 'all', label: 'All' },
+            { id: 'credit', label: 'Income' },
+            { id: 'debit', label: 'Expense' },
+            { id: 'bills', label: 'Bills' }
+          ].map((pill) => (
+            <button
+              key={pill.id}
+              type="button"
+              onClick={() => setFilterType(pill.id)}
+              style={{
+                border: 'none',
+                padding: '6px 14px',
+                borderRadius: '9999px',
+                fontSize: '0.8rem',
+                fontWeight: 700,
+                cursor: 'pointer',
+                transition: 'all 0.2s ease',
+                background: filterType === pill.id ? 'linear-gradient(135deg, #095ce5 0%, #0045b5 100%)' : 'transparent',
+                color: filterType === pill.id ? '#ffffff' : 'var(--text-muted)',
+                boxShadow: filterType === pill.id ? '0 2px 8px rgba(9, 92, 229, 0.3)' : 'none'
+              }}
+            >
+              {pill.label}
+            </button>
+          ))}
+        </div>
       </div>
 
-      {/* Transactions Table */}
-      <div className="premium-table-container">
+      {/* Transactions List (Matches Reference Design Image 1 Screen 3) */}
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
         {loading ? (
           <div style={{ padding: '40px', textAlign: 'center', color: 'var(--text-muted)' }}>Loading transactions...</div>
         ) : filtered.length === 0 ? (
-          <div style={{ padding: '48px 20px', textAlign: 'center' }}>
+          <div style={{ padding: '48px 20px', textAlign: 'center', background: 'var(--bg-card)', borderRadius: 'var(--radius-lg)', border: '1px solid var(--border-card)' }}>
             <AlertCircle size={36} color="var(--text-muted)" style={{ margin: '0 auto 12px' }} />
             <h4 style={{ fontWeight: 700, marginBottom: '6px' }}>No transactions found</h4>
             <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)', marginBottom: '16px' }}>
@@ -160,54 +241,89 @@ export const TransactionsView: React.FC = () => {
             </button>
           </div>
         ) : (
-          <table className="premium-table">
-            <thead>
-              <tr>
-                <th>Description</th>
-                <th>Category</th>
-                <th>Account</th>
-                <th>Date</th>
-                <th>Status</th>
-                <th style={{ textAlign: 'right' }}>Amount</th>
-                <th style={{ textAlign: 'center', width: '60px' }}>Action</th>
-              </tr>
-            </thead>
-            <tbody>
-              {filtered.map((tx) => (
-                <tr key={tx.id}>
-                  <td>
-                    <div style={{ fontWeight: 600 }}>{tx.title}</div>
-                    {tx.notes && <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>{tx.notes}</div>}
-                  </td>
-                  <td>
-                    <span style={{ padding: '3px 8px', borderRadius: 'var(--radius-full)', background: 'var(--bg-surface)', fontSize: '0.75rem', fontWeight: 600 }}>
-                      {tx.category || 'General'}
-                    </span>
-                  </td>
-                  <td style={{ color: 'var(--text-secondary)' }}>{tx.account || 'Primary Bank'}</td>
-                  <td style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>{formatDate(tx.date || new Date().toISOString())}</td>
-                  <td>
-                    <span className="badge-status success">
-                      {tx.status || 'Completed'}
-                    </span>
-                  </td>
-                  <td style={{ textAlign: 'right', fontFamily: 'var(--font-display)', fontWeight: 700, color: tx.type === 'credit' ? '#10b981' : '#f43f5e' }}>
-                    {tx.type === 'credit' ? '+' : '-'}{formatCurrency(tx.amount, profile.financial?.currency || 'INR')}
-                  </td>
-                  <td style={{ textAlign: 'center' }}>
-                    <button
-                      type="button"
-                      onClick={() => handleDelete(tx.id, tx.title)}
-                      style={{ color: '#ef4444', padding: '6px', borderRadius: '6px', opacity: 0.8, cursor: 'pointer' }}
-                      title="Delete record"
+          filtered.map((tx) => {
+            const iconInfo = getCategoryIconInfo(tx.category, tx.type);
+            return (
+              <div
+                key={tx.id}
+                className="premium-card glow-hover"
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  padding: '14px 16px',
+                  borderRadius: '16px',
+                  background: 'var(--bg-card)',
+                  border: '1px solid var(--border-card)',
+                  boxShadow: '0 2px 8px rgba(0,0,0,0.03)'
+                }}
+              >
+                <div style={{ display: 'flex', alignItems: 'center', gap: '14px', flex: 1, minWidth: 0 }}>
+                  <div
+                    style={{
+                      width: '44px',
+                      height: '44px',
+                      borderRadius: '12px',
+                      background: iconInfo.bg,
+                      color: iconInfo.color,
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      flexShrink: 0
+                    }}
+                  >
+                    {iconInfo.icon}
+                  </div>
+                  <div style={{ minWidth: 0, flex: 1 }}>
+                    <div style={{ fontWeight: 700, fontSize: '0.95rem', color: 'var(--text-primary)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                      {tx.title}
+                    </div>
+                    <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)', marginTop: '2px' }}>
+                      {tx.account || tx.notes || 'Primary Bank'}
+                    </div>
+                  </div>
+                </div>
+
+                <div style={{ display: 'flex', alignItems: 'center', gap: '14px', flexShrink: 0 }}>
+                  <div style={{ textAlign: 'right' }}>
+                    <div
+                      style={{
+                        fontFamily: 'var(--font-display)',
+                        fontWeight: 800,
+                        fontSize: '1.05rem',
+                        color: tx.type === 'credit' ? '#10b981' : '#f43f5e'
+                      }}
                     >
-                      <Trash2 size={15} />
-                    </button>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+                      {tx.type === 'credit' ? '+' : '-'}{formatCurrency(tx.amount, profile.financial?.currency || 'INR')}
+                    </div>
+                    <div style={{ fontSize: '0.74rem', color: 'var(--text-dim)', marginTop: '2px' }}>
+                      {formatDate(tx.date || new Date().toISOString())}
+                    </div>
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={() => handleDelete(tx.id, tx.title)}
+                    style={{
+                      background: 'none',
+                      border: 'none',
+                      color: 'var(--text-dim)',
+                      padding: '6px',
+                      cursor: 'pointer',
+                      borderRadius: '6px',
+                      opacity: 0.6,
+                      transition: 'opacity 0.2s'
+                    }}
+                    onMouseEnter={(e) => (e.currentTarget.style.opacity = '1')}
+                    onMouseLeave={(e) => (e.currentTarget.style.opacity = '0.6')}
+                    title="Delete transaction"
+                  >
+                    <Trash2 size={16} color="#ef4444" />
+                  </button>
+                </div>
+              </div>
+            );
+          })
         )}
       </div>
 

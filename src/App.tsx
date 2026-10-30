@@ -5,9 +5,11 @@ import { AuthProvider, useAuth } from './context/AuthContext';
 import { ProfileProvider, useProfile } from './context/ProfileContext';
 import { ToastContainer } from './components/common/ToastContainer';
 import { Sidebar, ActiveNavPage } from './components/layout/Sidebar';
+import { MobileBottomNav } from './components/layout/MobileBottomNav';
 import { ProfileDropdown } from './components/layout/ProfileDropdown';
 import { NotificationsDrawer } from './components/common/NotificationsDrawer';
 import { Skeleton } from './components/common/SkeletonLoader';
+import { QuickAddModal } from './components/common/QuickAddModal';
 import { LoginView } from './components/auth/LoginView';
 
 // Views
@@ -30,7 +32,7 @@ import {
   ReportsView
 } from './components/views/FinancialModuleViews';
 
-import { Menu, Sun, Moon, Bell, Search, ChevronRight, RotateCcw } from 'lucide-react';
+import { Menu, Sun, Moon, Bell, Search, ChevronRight, RotateCcw, Landmark } from 'lucide-react';
 import { ApiClient } from './services/apiClient';
 
 const AppContent: React.FC = () => {
@@ -40,6 +42,7 @@ const AppContent: React.FC = () => {
   const [currentPage, setCurrentPage] = useState<ActiveNavPage>('dashboard');
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
   const [isNotifDrawerOpen, setIsNotifDrawerOpen] = useState(false);
+  const [isQuickAddOpen, setIsQuickAddOpen] = useState(false);
   const [cloudOnline, setCloudOnline] = useState(true);
   const [isSyncing, setIsSyncing] = useState(false);
 
@@ -126,6 +129,14 @@ const AppContent: React.FC = () => {
             >
               <Menu size={20} />
             </button>
+
+            {/* Mobile Brand Logo (Matches Reference Design Image 1 Screen 1) */}
+            <div className="mobile-app-brand" onClick={() => setCurrentPage('dashboard')}>
+              <div className="mobile-app-brand-icon">
+                <Landmark size={16} />
+              </div>
+              <span className="mobile-app-brand-title">MoneyMate</span>
+            </div>
 
             <div className="app-breadcrumbs">
               <span className="breadcrumb-root">MoneyMate</span>
@@ -236,6 +247,25 @@ const AppContent: React.FC = () => {
         onClose={() => setIsNotifDrawerOpen(false)}
         onMarkAllRead={() => setHasUnreadNotifs(false)}
       />
+
+      {/* Mobile Persistent 5-Tab Navigation Bar with elevated + FAB */}
+      <MobileBottomNav
+        currentPage={currentPage}
+        onSelectPage={(page) => setCurrentPage(page)}
+        onOpenQuickAdd={() => setIsQuickAddOpen(true)}
+        onToggleMobileMenu={() => setMobileSidebarOpen(true)}
+      />
+
+      {/* Global Quick Add Transaction Modal */}
+      {isQuickAddOpen && (
+        <QuickAddModal
+          isOpen={isQuickAddOpen}
+          onClose={() => setIsQuickAddOpen(false)}
+          onSuccess={() => {
+            window.dispatchEvent(new CustomEvent('moneymate_data_changed'));
+          }}
+        />
+      )}
 
       {/* Toast Notification Container */}
       <ToastContainer />

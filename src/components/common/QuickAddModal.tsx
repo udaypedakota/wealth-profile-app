@@ -103,11 +103,11 @@ export const QuickAddModal: React.FC<QuickAddModalProps> = ({
     <Modal
       isOpen={isOpen}
       onClose={onClose}
-      title={type === 'debit' ? '⚡ Record Daily Expense' : '💰 Record Income Inflow'}
-      maxWidth="480px"
+      title="Add Transaction"
+      maxWidth="460px"
     >
       <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-        {/* Toggle between Expense and Income */}
+        {/* Toggle between Expense and Income (Matches Reference Design Image 1 Screen 4) */}
         <div
           style={{
             display: 'grid',
@@ -115,7 +115,7 @@ export const QuickAddModal: React.FC<QuickAddModalProps> = ({
             gap: '8px',
             padding: '4px',
             background: 'var(--bg-surface)',
-            borderRadius: 'var(--radius-sm)',
+            borderRadius: '9999px',
             border: '1px solid var(--border-subtle)'
           }}
         >
@@ -126,18 +126,17 @@ export const QuickAddModal: React.FC<QuickAddModalProps> = ({
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
-              gap: '6px',
-              padding: '8px',
-              borderRadius: 'var(--radius-xs)',
+              padding: '10px 16px',
+              borderRadius: '9999px',
               fontWeight: 700,
-              fontSize: '0.85rem',
+              fontSize: '0.9rem',
               color: type === 'debit' ? '#fff' : 'var(--text-secondary)',
-              background: type === 'debit' ? '#ef4444' : 'transparent',
+              background: type === 'debit' ? 'linear-gradient(135deg, #ef4444 0%, #dc2626 100%)' : 'transparent',
+              boxShadow: type === 'debit' ? '0 3px 10px rgba(239, 68, 68, 0.35)' : 'none',
               transition: 'all var(--transition-fast)'
             }}
           >
-            <TrendingDown size={16} />
-            <span>Expense</span>
+            Expense
           </button>
 
           <button
@@ -147,36 +146,54 @@ export const QuickAddModal: React.FC<QuickAddModalProps> = ({
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
-              gap: '6px',
-              padding: '8px',
-              borderRadius: 'var(--radius-xs)',
+              padding: '10px 16px',
+              borderRadius: '9999px',
               fontWeight: 700,
-              fontSize: '0.85rem',
+              fontSize: '0.9rem',
               color: type === 'credit' ? '#fff' : 'var(--text-secondary)',
-              background: type === 'credit' ? '#10b981' : 'transparent',
+              background: type === 'credit' ? 'linear-gradient(135deg, #10b981 0%, #059669 100%)' : 'transparent',
+              boxShadow: type === 'credit' ? '0 3px 10px rgba(16, 185, 129, 0.35)' : 'none',
               transition: 'all var(--transition-fast)'
             }}
           >
-            <TrendingUp size={16} />
-            <span>Income</span>
+            Income
           </button>
         </div>
 
-        {/* Amount Input (Prominent) */}
+        {/* Category Dropdown */}
         <div className="form-group" style={{ marginBottom: 0 }}>
-          <label className="form-label" style={{ fontSize: '0.85rem', fontWeight: 700 }}>
-            Amount (₹) *
+          <label className="form-label" style={{ fontSize: '0.84rem', fontWeight: 600, color: 'var(--text-primary)' }}>
+            Category
+          </label>
+          <select
+            className="form-select"
+            value={category}
+            onChange={(e) => setCategory(e.target.value)}
+            style={{ padding: '12px 14px', borderRadius: '12px', fontSize: '0.92rem' }}
+          >
+            {(type === 'debit' ? expenseCategories : incomeCategories).map((c) => (
+              <option key={c} value={c}>
+                {c}
+              </option>
+            ))}
+          </select>
+        </div>
+
+        {/* Amount Input */}
+        <div className="form-group" style={{ marginBottom: 0 }}>
+          <label className="form-label" style={{ fontSize: '0.84rem', fontWeight: 600, color: 'var(--text-primary)' }}>
+            Amount
           </label>
           <div style={{ position: 'relative' }}>
             <span
               style={{
                 position: 'absolute',
-                left: '14px',
+                left: '16px',
                 top: '50%',
                 transform: 'translateY(-50%)',
-                fontSize: '1.25rem',
+                fontSize: '1.2rem',
                 fontWeight: 700,
-                color: type === 'credit' ? '#10b981' : '#ef4444'
+                color: 'var(--text-muted)'
               }}
             >
               ₹
@@ -187,9 +204,12 @@ export const QuickAddModal: React.FC<QuickAddModalProps> = ({
               autoFocus
               className="form-input"
               style={{
-                paddingLeft: '34px',
-                fontSize: '1.25rem',
+                paddingLeft: '38px',
+                fontSize: '1.15rem',
                 fontWeight: 700,
+                borderRadius: '12px',
+                paddingTop: '12px',
+                paddingBottom: '12px',
                 fontFamily: 'var(--font-display)'
               }}
               placeholder="0.00"
@@ -200,96 +220,88 @@ export const QuickAddModal: React.FC<QuickAddModalProps> = ({
           </div>
         </div>
 
-        {/* Description / Title */}
+        {/* Date */}
         <div className="form-group" style={{ marginBottom: 0 }}>
-          <label className="form-label">Description / Paid For *</label>
+          <label className="form-label" style={{ fontSize: '0.84rem', fontWeight: 600, color: 'var(--text-primary)' }}>
+            Date
+          </label>
+          <div style={{ position: 'relative' }}>
+            <Calendar
+              size={18}
+              style={{
+                position: 'absolute',
+                left: '14px',
+                top: '50%',
+                transform: 'translateY(-50%)',
+                color: 'var(--text-muted)'
+              }}
+            />
+            <input
+              type="date"
+              className="form-input"
+              style={{ paddingLeft: '42px', borderRadius: '12px', paddingTop: '12px', paddingBottom: '12px' }}
+              value={date}
+              onChange={(e) => setDate(e.target.value)}
+            />
+          </div>
+        </div>
+
+        {/* Description */}
+        <div className="form-group" style={{ marginBottom: 0 }}>
+          <label className="form-label" style={{ fontSize: '0.84rem', fontWeight: 600, color: 'var(--text-primary)' }}>
+            Description
+          </label>
           <input
             type="text"
             className="form-input"
-            placeholder="e.g. Tea & Snacks, Supermarket Groceries, Petrol, Salary..."
+            style={{ borderRadius: '12px', paddingTop: '12px', paddingBottom: '12px' }}
+            placeholder="Enter description"
             value={title}
             onChange={(e) => setTitle(e.target.value)}
             required
           />
         </div>
 
-        {/* Category & Account */}
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
-          <div className="form-group" style={{ marginBottom: 0 }}>
-            <label className="form-label">Category</label>
-            <select
-              className="form-select"
-              value={category}
-              onChange={(e) => setCategory(e.target.value)}
-            >
-              {(type === 'debit' ? expenseCategories : incomeCategories).map((c) => (
-                <option key={c} value={c}>
-                  {c}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          <div className="form-group" style={{ marginBottom: 0 }}>
-            <label className="form-label">Payment Account</label>
-            <select
-              className="form-select"
-              value={account}
-              onChange={(e) => setAccount(e.target.value)}
-            >
-              <option value="Cash in Hand (Wallet)">💵 Cash in Hand (Wallet)</option>
-              <option value="Primary Savings Bank Account">🏦 Primary Savings Bank</option>
-              <option value="Primary Credit Card">💳 Credit Card</option>
-            </select>
-          </div>
-        </div>
-
-        {/* Date & Optional Notes */}
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
-          <div className="form-group" style={{ marginBottom: 0 }}>
-            <label className="form-label">Date</label>
-            <input
-              type="date"
-              className="form-input"
-              value={date}
-              onChange={(e) => setDate(e.target.value)}
-            />
-          </div>
-
-          <div className="form-group" style={{ marginBottom: 0 }}>
-            <label className="form-label">Optional Note</label>
-            <input
-              type="text"
-              className="form-input"
-              placeholder="Friend name, shop name..."
-              value={notes}
-              onChange={(e) => setNotes(e.target.value)}
-            />
-          </div>
-        </div>
-
-        {/* Action Buttons */}
-        <div style={{ display: 'flex', gap: '10px', marginTop: '10px' }}>
-          <button
-            type="button"
-            className="btn btn-secondary"
-            style={{ flex: 1 }}
-            onClick={onClose}
-            disabled={isSubmitting}
+        {/* Payment Account */}
+        <div className="form-group" style={{ marginBottom: 0 }}>
+          <label className="form-label" style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>
+            Account (Optional)
+          </label>
+          <select
+            className="form-select"
+            value={account}
+            onChange={(e) => setAccount(e.target.value)}
+            style={{ padding: '9px 12px', borderRadius: '10px', fontSize: '0.84rem' }}
           >
-            Cancel
-          </button>
+            <option value="Cash in Hand (Wallet)">💵 Cash in Hand (Wallet)</option>
+            <option value="Primary Savings Bank Account">🏦 Primary Savings Bank Account</option>
+            <option value="Primary Credit Card">💳 Primary Credit Card</option>
+          </select>
+        </div>
+
+        {/* Save Transaction Button (Full Width Pill matching Image 1 Screen 4) */}
+        <div style={{ marginTop: '6px' }}>
           <button
             type="submit"
             className="btn btn-primary"
             style={{
-              flex: 2,
-              background: type === 'credit' ? 'linear-gradient(135deg, #10b981 0%, #059669 100%)' : 'linear-gradient(135deg, #ef4444 0%, #dc2626 100%)'
+              width: '100%',
+              padding: '14px 20px',
+              borderRadius: '14px',
+              fontSize: '1rem',
+              fontWeight: 700,
+              background:
+                type === 'credit'
+                  ? 'linear-gradient(135deg, #10b981 0%, #059669 100%)'
+                  : 'linear-gradient(135deg, #ef4444 0%, #dc2626 100%)',
+              boxShadow:
+                type === 'credit'
+                  ? '0 4px 14px rgba(16, 185, 129, 0.4)'
+                  : '0 4px 14px rgba(239, 68, 68, 0.4)'
             }}
             disabled={isSubmitting}
           >
-            <Check size={16} />
-            <span>{isSubmitting ? 'Saving...' : type === 'credit' ? 'Record Income' : 'Record Expense'}</span>
+            <span>{isSubmitting ? 'Saving...' : 'Save Transaction'}</span>
           </button>
         </div>
       </form>

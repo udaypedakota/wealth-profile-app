@@ -12,15 +12,17 @@ interface ThemeContextType {
   toggleTheme: () => void;
 }
 
-const THEME_STORAGE_KEY = 'zenith_theme_mode';
-const DENSITY_STORAGE_KEY = 'zenith_density_mode';
-const ACCENT_STORAGE_KEY = 'zenith_accent_color';
+const THEME_STORAGE_KEY = 'moneymate_theme_mode_v3';
+const DENSITY_STORAGE_KEY = 'moneymate_density_mode_v3';
+const ACCENT_STORAGE_KEY = 'moneymate_accent_color_v3';
 
 const ThemeContext = createContext<ThemeContextType | undefined>(undefined);
 
 export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [theme, setThemeState] = useState<ThemeMode>(() => {
-    return (localStorage.getItem(THEME_STORAGE_KEY) as ThemeMode) || 'dark';
+    const saved = localStorage.getItem(THEME_STORAGE_KEY);
+    if (saved === 'dark' || saved === 'light') return saved as ThemeMode;
+    return 'light';
   });
 
   const [density, setDensityState] = useState<DashboardDensity>(() => {
@@ -28,15 +30,15 @@ export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   });
 
   const [accent, setAccentState] = useState<AccentColor>(() => {
-    return (localStorage.getItem(ACCENT_STORAGE_KEY) as AccentColor) || 'emerald';
+    return (localStorage.getItem(ACCENT_STORAGE_KEY) as AccentColor) || 'sapphire';
   });
 
-  const [resolvedTheme, setResolvedTheme] = useState<'dark' | 'light'>('dark');
+  const [resolvedTheme, setResolvedTheme] = useState<'dark' | 'light'>('light');
 
   // Compute resolved theme for 'system'
   useEffect(() => {
     const updateTheme = () => {
-      let resolved: 'dark' | 'light' = 'dark';
+      let resolved: 'dark' | 'light' = 'light';
       if (theme === 'system') {
         const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
         resolved = prefersDark ? 'dark' : 'light';

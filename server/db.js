@@ -2,7 +2,7 @@ import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import dns from 'dns';
-import { MongoClient } from 'mongodb';
+import { MongoClient, ObjectId } from 'mongodb';
 import dotenv from 'dotenv';
 
 // Use reliable DNS servers for MongoDB Atlas SRV resolution on Windows only
@@ -16,12 +16,16 @@ dotenv.config();
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
-const DATA_DIR = path.join(__dirname, 'data');
-const DB_FILE = path.join(DATA_DIR, 'db.json');
+const DATA_DIR = process.env.VERCEL ? path.join('/tmp', 'data') : path.join(__dirname, 'data');
+const DB_FILE = process.env.VERCEL ? path.join('/tmp', 'data', 'db.json') : path.join(DATA_DIR, 'db.json');
 
-// Ensure data directory exists
-if (!fs.existsSync(DATA_DIR)) {
-  fs.mkdirSync(DATA_DIR, { recursive: true });
+// Ensure data directory exists safely (prevents EROFS crash on Vercel / serverless)
+try {
+  if (!fs.existsSync(DATA_DIR)) {
+    fs.mkdirSync(DATA_DIR, { recursive: true });
+  }
+} catch (e) {
+  console.warn('Data directory creation skipped (read-only system):', e.message);
 }
 
 // Initial realistic default data for Uday Pedakota
@@ -299,8 +303,16 @@ export const CLEAN_USER_PROFILE_TEMPLATE = {
   updatedAt: new Date().toISOString()
 };
 
-const DIRECT_MONGO_URI = 'mongodb://udaypedakota:Uday8329@ac-f5pro8o-shard-00-00.khqhjse.mongodb.net:27017,ac-f5pro8o-shard-00-01.khqhjse.mongodb.net:27017,ac-f5pro8o-shard-00-02.khqhjse.mongodb.net:27017/wealthapp?ssl=true&replicaSet=atlas-12ok2r-shard-0&authSource=admin&retryWrites=true&w=majority';
-const SRV_MONGO_URI = 'mongodb+srv://udaypedakota:Uday8329@cluster0.khqhjse.mongodb.net/wealthapp?retryWrites=true&w=majority&appName=Cluster0';
+const DIRECT_MONGO_URI = 'mongodb://udaypedakota:UDay310398@ac-f5pro8o-shard-00-00.khqhjse.mongodb.net:27017,ac-f5pro8o-shard-00-01.khqhjse.mongodb.net:27017,ac-f5pro8o-shard-00-02.khqhjse.mongodb.net:27017/wealthapp?ssl=true&replicaSet=atlas-12ok2r-shard-0&authSource=admin&retryWrites=true&w=majority';
+const SRV_MONGO_URI = 'mongodb+srv://udaypedakota:UDay310398@cluster0.khqhjse.mongodb.net/wealthapp?retryWrites=true&w=majority&appName=Cluster0';
+
+export const UDAY_IDENTIFIERS = ['user_uday_01', 'uday_pedakota_01', 'udaypedakota', 'uday', 'peddakotaudaykumar@gmail.com'];
+
+export function isUdayUser(userId) {
+  if (!userId) return true;
+  const clean = String(userId).trim().toLowerCase();
+  return clean === 'uday' || clean.includes('uday') || UDAY_IDENTIFIERS.some((id) => id.toLowerCase() === clean);
+}
 
 class DatabaseManager {
   constructor() {
@@ -308,6 +320,29 @@ class DatabaseManager {
     this.mongoDb = global._mongoDb || null;
     this.isMongoConnected = !!(global._mongoClient && global._mongoDb);
     this.initPromise = this.init();
+  }
+
+  async ensureConnection() {
+    if (this.isMongoConnected && this.mongoDb) {
+      try {
+        await this.mongoDb.command({ ping: 1 });
+        return;
+      } catch (err) {
+        console.warn('⚠️ Stale MongoDB connection detected on serverless, reconnecting...', err.message);
+        this.isMongoConnected = false;
+        this.mongoClient = null;
+        this.mongoDb = null;
+        global._mongoClient = null;
+        global._mongoDb = null;
+      }
+    }
+    if (this.initPromise) {
+      await this.initPromise;
+    }
+    if (!this.isMongoConnected) {
+      this.initPromise = this.init();
+      await this.initPromise;
+    }
   }
 
   async init() {
@@ -319,9 +354,9 @@ class DatabaseManager {
     }
 
     const urisToTry = [];
-    if (process.env.MONGODB_URI) urisToTry.push(process.env.MONGODB_URI);
-    // Direct URI connects fast and has zero SRV/UDP dependencies on cloud/serverless
+    // Direct URI connects instantly without DNS SRV / UDP latency
     urisToTry.push(DIRECT_MONGO_URI);
+    if (process.env.MONGODB_URI) urisToTry.push(process.env.MONGODB_URI);
     urisToTry.push(SRV_MONGO_URI);
 
     const uniqueUris = [...new Set(urisToTry)];
@@ -329,7 +364,15 @@ class DatabaseManager {
     for (const uri of uniqueUris) {
       try {
         console.log('Connecting to MongoDB Atlas cluster...');
-        this.mongoClient = new MongoClient(uri, { serverSelectionTimeoutMS: 5000 });
+        this.mongoClient = new MongoClient(uri, {
+          serverSelectionTimeoutMS: 5000,
+          connectTimeoutMS: 8000,
+          socketTimeoutMS: 45000,
+          maxPoolSize: 10,
+          minPoolSize: 0,
+          maxIdleTimeMS: 30000,
+          retryWrites: true
+        });
         await this.mongoClient.connect();
         this.mongoDb = this.mongoClient.db('wealthapp');
         this.isMongoConnected = true;
@@ -447,14 +490,20 @@ class DatabaseManager {
 
   readLocalDb() {
     try {
-      if (!fs.existsSync(DB_FILE)) {
-        this.writeLocalDb(INITIAL_DATABASE);
-        return INITIAL_DATABASE;
+      if (fs.existsSync(DB_FILE)) {
+        const data = fs.readFileSync(DB_FILE, 'utf-8');
+        return JSON.parse(data);
       }
-      const data = fs.readFileSync(DB_FILE, 'utf-8');
-      return JSON.parse(data);
+      // If DB_FILE in /tmp doesn't exist, try bundled server/data/db.json
+      const bundledPath = path.join(__dirname, 'data', 'db.json');
+      if (fs.existsSync(bundledPath)) {
+        const data = fs.readFileSync(bundledPath, 'utf-8');
+        return JSON.parse(data);
+      }
+      this.writeLocalDb(INITIAL_DATABASE);
+      return INITIAL_DATABASE;
     } catch (err) {
-      console.error('Error reading local DB, restoring defaults:', err);
+      console.warn('Warning: Could not read local DB, restoring defaults:', err.message);
       return INITIAL_DATABASE;
     }
   }
@@ -463,14 +512,14 @@ class DatabaseManager {
     try {
       fs.writeFileSync(DB_FILE, JSON.stringify(data, null, 2), 'utf-8');
     } catch (err) {
-      console.error('Error writing local DB:', err);
+      console.warn('Warning: Could not write local DB (read-only filesystem):', err.message);
     }
   }
 
   // Multi-Tenant Get Collection / Entity scoped by userId
   async get(key, userId = 'user_uday_01') {
-    if (this.initPromise) await this.initPromise;
-    const isUday = !userId || userId === 'user_uday_01';
+    await this.ensureConnection();
+    const isUday = isUdayUser(userId);
 
     if (this.isMongoConnected && this.mongoDb) {
       try {
@@ -478,7 +527,14 @@ class DatabaseManager {
         if (key === 'profile') {
           let doc;
           if (isUday) {
-            doc = await col.findOne({ $or: [{ id: 'uday_pedakota_01' }, { userId: 'user_uday_01' }] });
+            doc = await col.findOne({
+              $or: [
+                { id: 'uday_pedakota_01' },
+                { id: 'user_uday_01' },
+                { userId: { $in: UDAY_IDENTIFIERS } },
+                { userId: { $exists: false } }
+              ]
+            });
           } else {
             doc = await col.findOne({ userId });
           }
@@ -527,9 +583,20 @@ class DatabaseManager {
         }
 
         const query = isUday
-          ? { $or: [{ userId: 'user_uday_01' }, { userId: { $exists: false } }] }
+          ? {
+              $or: [
+                { userId: { $in: UDAY_IDENTIFIERS } },
+                { userId: { $exists: false } },
+                { userId: null },
+                { userId: '' }
+              ]
+            }
           : { userId };
-        return await col.find(query).toArray();
+        const rawDocs = await col.find(query).toArray();
+        return rawDocs.map((doc) => ({
+          ...doc,
+          id: doc.id || doc._id?.toString()
+        }));
       } catch (e) {
         console.warn('Mongo read error, reading local fallback', e);
       }
@@ -584,13 +651,13 @@ class DatabaseManager {
     }
     const allItems = isUday ? (db[key] || INITIAL_DATABASE[key] || []) : (db[key] || []);
     if (!Array.isArray(allItems)) return [];
-    return allItems.filter((i) => (isUday ? (!i.userId || i.userId === 'user_uday_01') : i.userId === userId));
+    return allItems.filter((i) => (isUday ? (!i.userId || isUdayUser(i.userId)) : i.userId === userId));
   }
 
   // Multi-Tenant Save / Update Entity scoped by userId
   async set(key, value, userId = 'user_uday_01') {
-    if (this.initPromise) await this.initPromise;
-    const isUday = !userId || userId === 'user_uday_01';
+    await this.ensureConnection();
+    const isUday = isUdayUser(userId);
 
     if (this.isMongoConnected && this.mongoDb) {
       try {
@@ -641,8 +708,9 @@ class DatabaseManager {
 
   // Add Item to Array Collection with userId
   async addItem(collectionKey, item, userId = 'user_uday_01') {
-    if (this.initPromise) await this.initPromise;
-    const effectiveUserId = userId || 'user_uday_01';
+    await this.ensureConnection();
+    const isUday = isUdayUser(userId);
+    const effectiveUserId = isUday ? 'user_uday_01' : (userId || 'user_uday_01');
     const { _id, ...cleanItem } = item || {};
     const newItem = {
       ...cleanItem,
@@ -671,9 +739,17 @@ class DatabaseManager {
 
   // Delete Item from Array Collection scoped by userId
   async deleteItem(collectionKey, itemId, userId = 'user_uday_01') {
-    if (this.initPromise) await this.initPromise;
-    const isUday = !userId || userId === 'user_uday_01';
-    const query = isUday ? { id: itemId } : { id: itemId, userId };
+    await this.ensureConnection();
+    const isUday = isUdayUser(userId);
+    let objId = null;
+    try {
+      if (typeof itemId === 'string' && itemId.length === 24 && /^[0-9a-fA-F]{24}$/.test(itemId)) {
+        objId = new ObjectId(itemId);
+      }
+    } catch {}
+
+    const idOr = objId ? [{ id: itemId }, { _id: objId }, { _id: itemId }] : [{ id: itemId }];
+    const query = isUday ? { $or: idOr } : { $and: [{ $or: idOr }, { userId }] };
 
     if (this.isMongoConnected && this.mongoDb) {
       try {
@@ -686,7 +762,7 @@ class DatabaseManager {
 
     const db = this.readLocalDb();
     if (Array.isArray(db[collectionKey])) {
-      db[collectionKey] = db[collectionKey].filter((i) => i.id !== itemId);
+      db[collectionKey] = db[collectionKey].filter((i) => i.id !== itemId && String(i._id) !== itemId);
       this.writeLocalDb(db);
     }
     return { success: true, id: itemId };
@@ -694,9 +770,17 @@ class DatabaseManager {
 
   // Update Item in Array Collection scoped by userId
   async updateItem(collectionKey, itemId, partialUpdate, userId = 'user_uday_01') {
-    if (this.initPromise) await this.initPromise;
-    const isUday = !userId || userId === 'user_uday_01';
-    const query = isUday ? { id: itemId } : { id: itemId, userId };
+    await this.ensureConnection();
+    const isUday = isUdayUser(userId);
+    let objId = null;
+    try {
+      if (typeof itemId === 'string' && itemId.length === 24 && /^[0-9a-fA-F]{24}$/.test(itemId)) {
+        objId = new ObjectId(itemId);
+      }
+    } catch {}
+
+    const idOr = objId ? [{ id: itemId }, { _id: objId }, { _id: itemId }] : [{ id: itemId }];
+    const query = isUday ? { $or: idOr } : { $and: [{ $or: idOr }, { userId }] };
     const { _id, ...cleanPartial } = partialUpdate || {};
 
     if (this.isMongoConnected && this.mongoDb) {
@@ -710,7 +794,7 @@ class DatabaseManager {
 
     const db = this.readLocalDb();
     if (Array.isArray(db[collectionKey])) {
-      db[collectionKey] = db[collectionKey].map((i) => (i.id === itemId ? { ...i, ...cleanPartial } : i));
+      db[collectionKey] = db[collectionKey].map((i) => (i.id === itemId || String(i._id) === itemId ? { ...i, ...cleanPartial } : i));
       this.writeLocalDb(db);
     }
     return partialUpdate;
@@ -718,7 +802,7 @@ class DatabaseManager {
 
   // User Authentication: Find by username or email
   async findUser(usernameOrEmail) {
-    if (this.initPromise) await this.initPromise;
+    await this.ensureConnection();
     const queryStr = (usernameOrEmail || '').trim();
     if (!queryStr) return null;
 
@@ -769,7 +853,7 @@ class DatabaseManager {
 
   // Register New User & Setup isolated workspace
   async registerUser({ fullName, username, email, mobile, password }) {
-    if (this.initPromise) await this.initPromise;
+    await this.ensureConnection();
     const cleanUsername = (username || '').trim().toLowerCase();
     const cleanEmail = (email || '').trim().toLowerCase();
     const cleanName = (fullName || cleanUsername).trim();
