@@ -1822,32 +1822,25 @@ export const CreditCardsView: React.FC = () => {
             </div>
 
             {/* Action Buttons */}
-            <div style={{ display: 'flex', gap: '10px' }}>
-              <button
-                type="button"
-                className="btn btn-secondary"
-                style={{ flex: 1, justifyContent: 'center' }}
-                onClick={() => handleCopyBill(statementTargetCard)}
-              >
-                {copiedBill ? <Check size={16} color="#10b981" /> : <Copy size={16} />}
-                <span>{copiedBill ? 'Copied!' : 'Copy Summary'}</span>
-              </button>
-
+            <div className="statement-modal-actions">
               <a
                 href={`https://api.whatsapp.com/send?text=${encodeURIComponent(generateWhatsAppMessage(statementTargetCard))}`}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="btn btn-primary"
-                style={{
-                  flex: 1.3,
-                  justifyContent: 'center',
-                  background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
-                  textDecoration: 'none'
-                }}
+                className="btn statement-whatsapp-btn"
               >
-                <MessageCircle size={16} />
+                <MessageCircle size={18} />
                 <span>Share on WhatsApp</span>
               </a>
+
+              <button
+                type="button"
+                className="btn btn-secondary statement-copy-btn"
+                onClick={() => handleCopyBill(statementTargetCard)}
+              >
+                {copiedBill ? <Check size={16} color="#10b981" /> : <Copy size={16} />}
+                <span>{copiedBill ? 'Copied to Clipboard!' : 'Copy Summary'}</span>
+              </button>
             </div>
           </div>
         )}

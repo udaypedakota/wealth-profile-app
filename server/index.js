@@ -197,21 +197,13 @@ app.get('/api/auth/me', async (req, res) => {
 app.get('/api/profile', async (req, res) => {
   try {
     const userId = getUserId(req);
-    const profile = await dbManager.get('profile', userId);
-    const accounts = await dbManager.get('accounts', userId);
-    const transactions = await dbManager.get('transactions', userId);
-
-    // Calculate dynamic stats
-    let totalIncome = 0;
-    let totalExpenses = 0;
-
-    transactions.forEach((tx) => {
-      if (tx.type === 'credit') totalIncome += Number(tx.amount || 0);
-      if (tx.type === 'debit') totalExpenses += Number(tx.amount || 0);
-    });
-
-    const bills = await dbManager.get('bills', userId);
-    const emis = await dbManager.get('emis', userId);
+    const [profile, accounts, transactions, bills, emis] = await Promise.all([
+      dbManager.get('profile', userId),
+      dbManager.get('accounts', userId),
+      dbManager.get('transactions', userId),
+      dbManager.get('bills', userId),
+      dbManager.get('emis', userId)
+    ]);
     const creditCards = accounts.filter((a) => a.type === 'credit_card');
 
     res.json({
@@ -276,13 +268,15 @@ app.post('/api/profile/avatar', async (req, res) => {
 app.get('/api/dashboard', async (req, res) => {
   try {
     const userId = getUserId(req);
-    const profile = await dbManager.get('profile', userId);
-    const accounts = await dbManager.get('accounts', userId);
-    const transactions = await dbManager.get('transactions', userId);
-    const bills = await dbManager.get('bills', userId);
-    const emis = await dbManager.get('emis', userId);
-    const chits = await dbManager.get('chits', userId);
-    const lending = await dbManager.get('lending', userId);
+    const [profile, accounts, transactions, bills, emis, chits, lending] = await Promise.all([
+      dbManager.get('profile', userId),
+      dbManager.get('accounts', userId),
+      dbManager.get('transactions', userId),
+      dbManager.get('bills', userId),
+      dbManager.get('emis', userId),
+      dbManager.get('chits', userId),
+      dbManager.get('lending', userId)
+    ]);
 
     const todayStr = new Date().toISOString().split('T')[0];
 

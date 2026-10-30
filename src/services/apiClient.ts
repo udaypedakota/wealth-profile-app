@@ -456,10 +456,20 @@ export class ApiClient {
     return res || { success: true, avatarUrl };
   }
 
+  static getCachedDashboard() {
+    return getLocal<any>('dashboard_cache', null);
+  }
+
   // Dashboard Aggregates (100% Dynamic from Database & Synced Cache)
   static async getDashboard() {
     const res = await this.request('/dashboard');
-    if (res && res.balances && res.sectionBreakdowns) return res;
+    if (res && res.balances && res.sectionBreakdowns) {
+      setLocal('dashboard_cache', res);
+      return res;
+    }
+
+    const cached = getLocal<any>('dashboard_cache', null);
+    if (cached && cached.balances) return cached;
 
     // Local dynamic computation fallback
     const accounts = getLocal<any[]>('accounts', DEFAULT_INITIAL_STATE.accounts);

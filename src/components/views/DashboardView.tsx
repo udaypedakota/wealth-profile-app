@@ -212,8 +212,8 @@ interface DashboardViewProps {
 }
 
 export const DashboardView: React.FC<DashboardViewProps> = ({ onNavigatePage }) => {
-  const [data, setData] = useState<any>(null);
-  const [loading, setLoading] = useState(true);
+  const [data, setData] = useState<any>(() => ApiClient.getCachedDashboard());
+  const [loading, setLoading] = useState(() => !ApiClient.getCachedDashboard());
   const [isQuickAddOpen, setIsQuickAddOpen] = useState(false);
   const [quickAddType, setQuickAddType] = useState<'debit' | 'credit'>('debit');
 

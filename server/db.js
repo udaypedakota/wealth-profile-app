@@ -303,7 +303,6 @@ export const CLEAN_USER_PROFILE_TEMPLATE = {
   updatedAt: new Date().toISOString()
 };
 
-const DIRECT_MONGO_URI = 'mongodb://udaypedakota:UDay310398@ac-f5pro8o-shard-00-00.khqhjse.mongodb.net:27017,ac-f5pro8o-shard-00-01.khqhjse.mongodb.net:27017,ac-f5pro8o-shard-00-02.khqhjse.mongodb.net:27017/wealthapp?ssl=true&replicaSet=atlas-12ok2r-shard-0&authSource=admin&retryWrites=true&w=majority';
 const SRV_MONGO_URI = 'mongodb+srv://udaypedakota:UDay310398@cluster0.khqhjse.mongodb.net/wealthapp?retryWrites=true&w=majority&appName=Cluster0';
 
 export const UDAY_IDENTIFIERS = ['user_uday_01', 'uday_pedakota_01', 'udaypedakota', 'uday', 'peddakotaudaykumar@gmail.com'];
@@ -324,17 +323,7 @@ class DatabaseManager {
 
   async ensureConnection() {
     if (this.isMongoConnected && this.mongoDb) {
-      try {
-        await this.mongoDb.command({ ping: 1 });
-        return;
-      } catch (err) {
-        console.warn('⚠️ Stale MongoDB connection detected on serverless, reconnecting...', err.message);
-        this.isMongoConnected = false;
-        this.mongoClient = null;
-        this.mongoDb = null;
-        global._mongoClient = null;
-        global._mongoDb = null;
-      }
+      return;
     }
     if (this.initPromise) {
       await this.initPromise;
@@ -353,138 +342,57 @@ class DatabaseManager {
       return;
     }
 
-    const urisToTry = [];
-    // Direct URI connects instantly without DNS SRV / UDP latency
-    urisToTry.push(DIRECT_MONGO_URI);
-    if (process.env.MONGODB_URI) urisToTry.push(process.env.MONGODB_URI);
-    urisToTry.push(SRV_MONGO_URI);
+    const uri = process.env.MONGODB_URI || SRV_MONGO_URI;
 
-    const uniqueUris = [...new Set(urisToTry)];
-
-    for (const uri of uniqueUris) {
-      try {
-        console.log('Connecting to MongoDB Atlas cluster...');
-        this.mongoClient = new MongoClient(uri, {
-          serverSelectionTimeoutMS: 5000,
-          connectTimeoutMS: 8000,
-          socketTimeoutMS: 45000,
-          maxPoolSize: 10,
-          minPoolSize: 0,
-          maxIdleTimeMS: 30000,
-          retryWrites: true
-        });
-        await this.mongoClient.connect();
-        this.mongoDb = this.mongoClient.db('wealthapp');
-        this.isMongoConnected = true;
-        global._mongoClient = this.mongoClient;
-        global._mongoDb = this.mongoDb;
-        console.log('✅ Connected successfully to MongoDB Atlas!');
-        break;
-      } catch (err) {
-        console.warn('⚠️ MongoDB Atlas connection attempt failed, trying fallback URI:', err.message);
-      }
+    try {
+      this.mongoClient = new MongoClient(uri, {
+        serverSelectionTimeoutMS: 3000,
+        connectTimeoutMS: 4000,
+        socketTimeoutMS: 45000,
+        maxPoolSize: 10,
+        minPoolSize: 1,
+        maxIdleTimeMS: 60000,
+        retryWrites: true
+      });
+      await this.mongoClient.connect();
+      this.mongoDb = this.mongoClient.db('wealthapp');
+      this.isMongoConnected = true;
+      global._mongoClient = this.mongoClient;
+      global._mongoDb = this.mongoDb;
+      console.log('✅ Connected successfully to MongoDB Atlas in fast mode!');
+    } catch (err) {
+      console.warn('⚠️ MongoDB Atlas connection error, using local fallback:', err.message);
+      this.isMongoConnected = false;
     }
 
-    if (this.isMongoConnected && this.mongoDb) {
-      try {
-        // Ensure users collection exists with Uday Pedakota credentials in MongoDB Atlas
-        const usersCol = this.mongoDb.collection('users');
-        const defaultUser = {
-          id: 'user_uday_01',
-          username: 'udaypedakota',
-          email: 'peddakotaudaykumar@gmail.com',
-          password: 'Uday8329',
-          fullName: 'Uday Pedakota',
-          createdAt: new Date().toISOString()
-        };
-        const existingUser = await usersCol.findOne({
-          $or: [{ username: 'udaypedakota' }, { email: 'peddakotaudaykumar@gmail.com' }]
-        });
-        if (!existingUser) {
-          await usersCol.insertOne(defaultUser);
-          console.log('✅ Created user credentials in MongoDB Atlas (username: udaypedakota)!');
-        }
-
-        // Automatically seed MongoDB if empty
-        const profileCol = this.mongoDb.collection('profile');
-        const existing = await profileCol.findOne({ id: 'uday_pedakota_01' });
-        if (!existing) {
-          console.log('Migrating local data to MongoDB Atlas...');
-          const localData = this.readLocalDb();
-          await profileCol.insertOne(localData.profile || INITIAL_DATABASE.profile);
-          for (const col of ['transactions', 'bills', 'emis', 'chits', 'lending', 'accounts']) {
-            const arr = localData[col] || INITIAL_DATABASE[col] || [];
-            if (arr.length > 0) {
-              await this.mongoDb.collection(col).insertMany(arr);
+    // Run one-time background integrity checks asynchronously (Never blocks API responses!)
+    if (this.isMongoConnected && this.mongoDb && !global._hasRunDbSeed) {
+      global._hasRunDbSeed = true;
+      (async () => {
+        try {
+          const profileCol = this.mongoDb.collection('profile');
+          const existing = await profileCol.findOne({ id: 'uday_pedakota_01' });
+          if (!existing) {
+            console.log('Migrating initial profile data to MongoDB Atlas...');
+            await profileCol.insertOne(INITIAL_DATABASE.profile);
+            for (const col of ['transactions', 'bills', 'emis', 'chits', 'lending', 'accounts']) {
+              const arr = INITIAL_DATABASE[col] || [];
+              if (arr.length > 0) {
+                await this.mongoDb.collection(col).insertMany(arr);
+              }
             }
           }
-          console.log('✅ Migrated all records to MongoDB Atlas cloud!');
+        } catch (e) {
+          console.warn('Background seed check error:', e.message);
         }
-
-        // Ensure chits collection is seeded with 3L Chit if empty
-        const chitsCol = this.mongoDb.collection('chits');
-        const chitCount = await chitsCol.countDocuments();
-        if (chitCount === 0 && INITIAL_DATABASE.chits && INITIAL_DATABASE.chits.length > 0) {
-          await chitsCol.insertMany(INITIAL_DATABASE.chits);
-          console.log('✅ Seeded initial 3L Chit to MongoDB Atlas!');
-        }
-
-        // Ensure all collections are seeded if empty
-        for (const colName of ['accounts', 'bills', 'emis', 'lending', 'transactions']) {
-          const col = this.mongoDb.collection(colName);
-          const count = await col.countDocuments();
-          if (count === 0 && INITIAL_DATABASE[colName] && INITIAL_DATABASE[colName].length > 0) {
-            await col.insertMany(INITIAL_DATABASE[colName]);
-            console.log(`✅ Seeded initial ${colName} to MongoDB Atlas!`);
-          }
-        }
-
-        // Ensure profile monthlyIncome is set to 60000
-        await profileCol.updateOne(
-          { id: 'uday_pedakota_01' },
-          { $set: { 'financial.monthlyIncome': 60000 } }
-        );
-
-        // Ensure credit card accounts exist and have creditLimit, usedAmount, availableLimit
-        const accountsCol = this.mongoDb.collection('accounts');
-        const hasCard = await accountsCol.findOne({ type: 'credit_card' });
-        if (!hasCard) {
-          await accountsCol.insertOne({
-            id: 'acc_card_03',
-            name: 'Primary Credit Card',
-            type: 'credit_card',
-            institution: 'HDFC / Bank Credit Line',
-            maskedNumber: '•••• 1998',
-            creditLimit: 100000,
-            usedAmount: 0,
-            balance: 0,
-            availableLimit: 100000,
-            dueDate: '15th of every month',
-            statementDate: '2nd of every month',
-            currency: 'INR',
-            status: 'active',
-            expiryDate: '03/29',
-            cardColor: 'linear-gradient(135deg, #1e1b4b 0%, #312e81 100%)'
-          });
-          console.log('✅ Seeded initial Credit Card to MongoDB Atlas!');
-        } else {
-          await accountsCol.updateMany(
-            { type: 'credit_card', creditLimit: { $exists: false } },
-            { $set: { creditLimit: 100000, usedAmount: 0, availableLimit: 100000, dueDate: '15th of every month', statementDate: '2nd of every month' } }
-          );
-        }
-        return;
-      } catch (err) {
-        console.warn('⚠️ MongoDB Atlas connection failed, falling back to local file storage:', err.message);
-      }
+      })();
     }
 
-    // Local JSON File DB initialization
-    if (!fs.existsSync(DB_FILE)) {
-      this.writeLocalDb(INITIAL_DATABASE);
-      console.log('✅ Initialized local storage database at:', DB_FILE);
-    } else {
-      console.log('✅ Local database loaded from:', DB_FILE);
+    // Local JSON File DB initialization for offline mode
+    if (!this.isMongoConnected) {
+      if (!fs.existsSync(DB_FILE)) {
+        this.writeLocalDb(INITIAL_DATABASE);
+      }
     }
   }
 
