@@ -597,6 +597,8 @@ export class ApiClient {
     const monthlySalary = Number(profile.financial?.monthlyIncome || 0);
     const totalMonthlyCommitments = monthlyEmiTotal + monthlyChitsTotal + pendingBillsAmount + totalCreditUsed;
     const remainingDisposable = Math.max(0, monthlySalary - (monthlyEmiTotal + monthlyChitsTotal + pendingBillsAmount));
+    const effectiveMonthlyExpense = thisMonthExpense > 0 ? thisMonthExpense : totalExpenseCategorized;
+    const effectiveMonthlyIncome = thisMonthIncome > 0 ? thisMonthIncome : monthlySalary;
 
     return {
       user: {
@@ -611,8 +613,9 @@ export class ApiClient {
         totalCreditCardDue: totalCreditUsed,
         todayExpense,
         yesterdayExpense,
-        thisMonthIncome,
-        thisMonthExpense,
+        thisMonthIncome: effectiveMonthlyIncome,
+        thisMonthExpense: effectiveMonthlyExpense,
+        totalExpenses: totalExpenseCategorized,
         monthlyIncome: monthlySalary,
         monthlyBudget: Number(profile?.financial?.monthlyBudget || 0),
         currencySymbol: profile?.financial?.currencySymbol || '₹'

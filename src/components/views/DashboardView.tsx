@@ -467,7 +467,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ onNavigatePage }) 
           ========================================================================== */}
       {(() => {
         const displayIncome = Number(balances.thisMonthIncome || balances.monthlyIncome || 0);
-        const displayExpense = Number(balances.thisMonthExpense || 0);
+        const displayExpense = Number(balances.thisMonthExpense || (balances as any).totalExpenses || 0);
         const displaySavings = Math.max(0, displayIncome - displayExpense);
         const budgetLimit = Number(balances.monthlyBudget || 0);
         const budgetUsedPercent = budgetLimit > 0 ? Math.min(100, Math.round((displayExpense / budgetLimit) * 100)) : 0;
@@ -495,8 +495,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ onNavigatePage }) 
                   </div>
                   <div>
                     <span style={{ fontSize: '0.82rem', fontWeight: 600, color: 'var(--text-muted)' }}>
-                      <span className="desktop-stat-label">Monthly Inflow</span>
-                      <span className="mobile-stat-label">Income</span>
+                      Income
                     </span>
                   </div>
                 </div>
@@ -589,8 +588,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ onNavigatePage }) 
                   </div>
                   <div>
                     <span style={{ fontSize: '0.82rem', fontWeight: 600, color: 'var(--text-muted)' }}>
-                      <span className="desktop-stat-label">Monthly Outflow</span>
-                      <span className="mobile-stat-label">Expenses</span>
+                      Expenses
                     </span>
                   </div>
                 </div>
@@ -683,8 +681,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ onNavigatePage }) 
                   </div>
                   <div>
                     <span style={{ fontSize: '0.82rem', fontWeight: 600, color: 'var(--text-muted)' }}>
-                      <span className="desktop-stat-label">Net Savings</span>
-                      <span className="mobile-stat-label">Savings</span>
+                      Savings
                     </span>
                   </div>
                 </div>
@@ -777,8 +774,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ onNavigatePage }) 
                   </div>
                   <div>
                     <span style={{ fontSize: '0.82rem', fontWeight: 600, color: 'var(--text-muted)' }}>
-                      <span className="desktop-stat-label">Budget Utilization</span>
-                      <span className="mobile-stat-label">Budget</span>
+                      Budget
                     </span>
                   </div>
                 </div>
