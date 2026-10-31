@@ -23,6 +23,7 @@ interface AccountSummaryProps {
   onAddAccount: (account: AccountItem) => Promise<void>;
   onUpdateAccount: (account: AccountItem) => Promise<void>;
   onDeleteAccount: (accountId: string) => Promise<void>;
+  isModal?: boolean;
 }
 
 export const AccountSummary: React.FC<AccountSummaryProps> = ({
@@ -31,7 +32,8 @@ export const AccountSummary: React.FC<AccountSummaryProps> = ({
   maskBalances = false,
   onAddAccount,
   onUpdateAccount,
-  onDeleteAccount
+  onDeleteAccount,
+  isModal = false
 }) => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingAccount, setEditingAccount] = useState<AccountItem | null>(null);
@@ -157,38 +159,63 @@ export const AccountSummary: React.FC<AccountSummaryProps> = ({
     }
   };
 
-  return (
-    <div className="premium-card glow-hover">
-      <div className="card-header-row">
-        <div className="card-title-group">
-          <div className="card-icon-bubble">
-            <Building2 size={22} />
+  const innerContent = (
+    <>
+      {isModal ? (
+        <div className="account-modal-header-toolbar">
+          <div className="account-modal-pill">
+            💳 <strong>{accounts.length}</strong> {accounts.length === 1 ? 'Instrument' : 'Instruments'} Active
           </div>
-          <div>
-            <h3 className="card-title">Connected Accounts & Instruments</h3>
-            <p className="card-subtitle">
-              Manage liquid bank accounts, high-yield deposits, and luxury credit card lines
-            </p>
+
+          <div className="account-header-actions-group">
+            <button
+              type="button"
+              className="btn btn-secondary btn-sm"
+              onClick={() => setHideBalances(!hideBalances)}
+              title={hideBalances ? 'Reveal balances' : 'Hide balances'}
+            >
+              {hideBalances ? <Eye size={15} /> : <EyeOff size={15} />}
+              <span>{hideBalances ? 'Show Balances' : 'Hide Balances'}</span>
+            </button>
+
+            <button type="button" className="btn btn-primary btn-sm" onClick={openAddModal}>
+              <Plus size={16} />
+              <span>+ Add Account</span>
+            </button>
           </div>
         </div>
+      ) : (
+        <div className="account-summary-header-wrap">
+          <div className="card-title-group">
+            <div className="card-icon-bubble">
+              <Building2 size={22} />
+            </div>
+            <div>
+              <h3 className="card-title">Connected Accounts & Instruments</h3>
+              <p className="card-subtitle">
+                Manage liquid bank accounts, high-yield deposits, and luxury credit card lines
+              </p>
+            </div>
+          </div>
 
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-          <button
-            type="button"
-            className="btn btn-secondary btn-sm"
-            onClick={() => setHideBalances(!hideBalances)}
-            title={hideBalances ? 'Reveal balances' : 'Hide balances'}
-          >
-            {hideBalances ? <Eye size={15} /> : <EyeOff size={15} />}
-            <span>{hideBalances ? 'Show Balances' : 'Hide Balances'}</span>
-          </button>
+          <div className="account-header-actions-group">
+            <button
+              type="button"
+              className="btn btn-secondary btn-sm"
+              onClick={() => setHideBalances(!hideBalances)}
+              title={hideBalances ? 'Reveal balances' : 'Hide balances'}
+            >
+              {hideBalances ? <Eye size={15} /> : <EyeOff size={15} />}
+              <span>{hideBalances ? 'Show Balances' : 'Hide Balances'}</span>
+            </button>
 
-          <button type="button" className="btn btn-primary btn-sm" onClick={openAddModal}>
-            <Plus size={16} />
-            <span>Add Account / Card</span>
-          </button>
+            <button type="button" className="btn btn-primary btn-sm" onClick={openAddModal}>
+              <Plus size={16} />
+              <span>+ Add Account</span>
+            </button>
+          </div>
         </div>
-      </div>
+      )}
 
       {accounts.length === 0 ? (
         <div style={{ padding: '36px 16px', textAlign: 'center', background: 'var(--bg-surface)', borderRadius: '12px', border: '1px dashed var(--border-subtle)', marginTop: '16px' }}>
@@ -253,33 +280,45 @@ export const AccountSummary: React.FC<AccountSummaryProps> = ({
                   className="btn btn-secondary btn-sm"
                   style={{
                     flex: 1,
-                    background: 'rgba(255, 255, 255, 0.12)',
+                    background: 'rgba(255, 255, 255, 0.15)',
                     color: '#fff',
-                    border: '1px solid rgba(255, 255, 255, 0.2)'
+                    border: '1px solid rgba(255, 255, 255, 0.25)',
+                    backdropFilter: 'blur(6px)'
                   }}
                   onClick={() => openEditModal(acc)}
                 >
                   <Edit2 size={13} />
-                  <span>Edit</span>
+                  <span>Edit Account</span>
                 </button>
 
                 <button
                   type="button"
                   className="btn btn-outline btn-sm"
                   style={{
-                    background: 'rgba(239, 68, 68, 0.15)',
+                    background: 'rgba(239, 68, 68, 0.18)',
                     color: '#fca5a5',
-                    border: '1px solid rgba(239, 68, 68, 0.3)'
+                    border: '1px solid rgba(239, 68, 68, 0.35)',
+                    padding: '0 12px'
                   }}
                   onClick={() => handleDelete(acc.id, acc.name)}
                   title="Unlink Account"
                 >
-                  <Trash2 size={13} />
+                  <Trash2 size={14} />
                 </button>
               </div>
             </div>
           ))}
         </div>
+      )}
+    </>
+  );
+
+  return (
+    <>
+      {isModal ? (
+        <div className="account-summary-modal-wrap">{innerContent}</div>
+      ) : (
+        <div className="premium-card glow-hover">{innerContent}</div>
       )}
 
       {/* Add/Edit Account Modal */}
@@ -395,6 +434,6 @@ export const AccountSummary: React.FC<AccountSummaryProps> = ({
           </div>
         </form>
       </Modal>
-    </div>
+    </>
   );
 };

@@ -1391,6 +1391,203 @@ input, textarea, select {
   margin-top: 14px;
 }
 
+/* Responsive Connected Accounts Header & Modal Styling */
+.account-summary-header-wrap {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 20px;
+  gap: 14px;
+}
+
+.account-header-actions-group {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.account-summary-modal-wrap {
+  width: 100%;
+}
+
+.account-modal-header-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 16px;
+  gap: 12px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.account-modal-pill {
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+  background: var(--bg-surface);
+  padding: 6px 12px;
+  border-radius: var(--radius-full);
+  border: 1px solid var(--border-subtle);
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+@media (max-width: 640px) {
+  .account-summary-header-wrap {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 12px;
+    margin-bottom: 16px;
+  }
+
+  .account-modal-header-toolbar {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 10px;
+    margin-bottom: 14px;
+    padding-bottom: 10px;
+  }
+
+  .account-modal-pill {
+    width: 100%;
+    justify-content: center;
+    box-sizing: border-box;
+    font-size: 0.78rem;
+  }
+
+  .account-header-actions-group {
+    width: 100%;
+    display: flex;
+    gap: 8px;
+  }
+
+  .account-header-actions-group .btn {
+    flex: 1;
+    justify-content: center;
+    padding: 8px 10px !important;
+    font-size: 0.82rem !important;
+    white-space: nowrap !important;
+  }
+
+  .account-card-item {
+    padding: 16px !important;
+    border-radius: 16px !important;
+    min-height: auto;
+  }
+
+  .account-card-number {
+    font-size: 0.88rem !important;
+    margin: 8px 0 !important;
+  }
+
+  .account-card-balance {
+    font-size: 1.35rem !important;
+  }
+
+  .account-card-actions {
+    margin-top: 12px;
+    gap: 8px;
+  }
+
+  .account-card-actions .btn {
+    padding: 7px 10px !important;
+    font-size: 0.8rem !important;
+  }
+}
+
+/* Credit Cards Split Manager Responsive Styles */
+.credit-split-kpis {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 12px;
+}
+
+.credit-split-kpi-item {
+  background: var(--bg-surface);
+  padding: 14px;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border-subtle);
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+}
+
+.credit-split-kpi-label {
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.credit-split-kpi-val {
+  font-size: 1.35rem;
+  font-weight: 800;
+  margin-top: 4px;
+}
+
+.credit-split-kpi-sub {
+  font-size: 0.72rem;
+  color: var(--text-muted);
+  margin-top: 2px;
+}
+
+.swiped-record-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 16px;
+  background: var(--bg-surface);
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border-subtle);
+  gap: 12px;
+  transition: all 0.2s ease;
+}
+
+.swiped-record-item:hover {
+  border-color: var(--border-highlight);
+}
+
+@media (max-width: 768px) {
+  .credit-split-kpis {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 8px;
+  }
+
+  .credit-split-kpi-item {
+    padding: 10px 12px;
+  }
+
+  .credit-split-kpi-val {
+    font-size: 1.15rem;
+  }
+
+  .credit-split-kpi-label {
+    font-size: 0.68rem;
+  }
+
+  .credit-split-kpi-sub {
+    font-size: 0.65rem;
+  }
+
+  .swiped-record-item {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 10px;
+    padding: 12px 14px;
+  }
+
+  .swiped-record-actions-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-top: 1px dashed var(--border-subtle);
+    padding-top: 8px;
+    margin-top: 2px;
+    width: 100%;
+  }
+}
+
 /* ==========================================================================
    FINANCIAL STATS (11 METRICS GRID)
    ========================================================================== */

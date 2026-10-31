@@ -72,13 +72,14 @@ export const ProfileView: React.FC<ProfileViewProps> = ({ onNavigateTab }) => {
         title="Manage Connected Accounts & Cards"
         maxWidth="820px"
       >
-        <div style={{ padding: '8px 0' }}>
+        <div style={{ padding: '4px 0' }}>
           <AccountSummary
             accounts={profile.accounts}
             currency={profile.financial.currency}
             onAddAccount={addAccount}
             onUpdateAccount={updateAccount}
             onDeleteAccount={deleteAccount}
+            isModal={true}
           />
         </div>
       </Modal>

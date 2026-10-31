@@ -111,6 +111,7 @@ export const CreditCardsView: React.FC = () => {
   const [splitStatus, setSplitStatus] = useState<'pending' | 'settled'>('pending');
   const [autoUpdateUsed, setAutoUpdateUsed] = useState(true);
   const [splitSubmitting, setSplitSubmitting] = useState(false);
+  const [editingSplit, setEditingSplit] = useState<{ cardId: string; split: CardSplitExpense } | null>(null);
 
   // Statement Bill Share Modal State
   const [isStatementModalOpen, setIsStatementModalOpen] = useState(false);
@@ -321,6 +322,7 @@ export const CreditCardsView: React.FC = () => {
       error('No Card Available', 'Please link a credit card first.');
       return;
     }
+    setEditingSplit(null);
     setSplitTargetCardId(target.id);
     setSplitPerson('');
     setSplitIsSelf(false);
@@ -329,6 +331,19 @@ export const CreditCardsView: React.FC = () => {
     setSplitDate(new Date().toISOString().split('T')[0]);
     setSplitStatus('pending');
     setAutoUpdateUsed(true);
+    setIsSplitModalOpen(true);
+  };
+
+  const handleOpenEditSplit = (cardId: string, split: CardSplitExpense) => {
+    setEditingSplit({ cardId, split });
+    setSplitTargetCardId(cardId);
+    setSplitIsSelf(split.isSelf);
+    setSplitPerson(split.personName);
+    setSplitAmount(String(split.amount));
+    setSplitDesc(split.description);
+    setSplitDate(split.date);
+    setSplitStatus(split.status);
+    setAutoUpdateUsed(false);
     setIsSplitModalOpen(true);
   };
 
@@ -349,6 +364,50 @@ export const CreditCardsView: React.FC = () => {
     const person = splitIsSelf ? 'Self (Me)' : splitPerson.trim();
     if (!person) {
       error('Person Name Required', 'Please enter who used this card.');
+      return;
+    }
+
+    if (editingSplit) {
+      const origAmt = editingSplit.split.amount;
+      const updatedSplits = (card.splits || []).map((s) => {
+        if (s.id === editingSplit.split.id) {
+          return {
+            ...s,
+            personName: person,
+            isSelf: splitIsSelf,
+            amount: amt,
+            description: splitDesc.trim() || 'Credit Card Swipe',
+            date: splitDate || new Date().toISOString().split('T')[0],
+            status: splitIsSelf ? 'settled' : splitStatus
+          };
+        }
+        return s;
+      });
+
+      let newUsed = card.usedAmount;
+      if (autoUpdateUsed && amt !== origAmt) {
+        newUsed = Math.max(0, card.usedAmount - origAmt + amt);
+      }
+
+      try {
+        setSplitSubmitting(true);
+        await ApiClient.updateAccount(card.id, {
+          ...card,
+          usedAmount: newUsed,
+          availableLimit: Math.max(0, card.creditLimit - newUsed),
+          balance: -Math.abs(newUsed),
+          splits: updatedSplits
+        });
+
+        success('Record Updated', `Updated swipe record for ${person}.`);
+        setIsSplitModalOpen(false);
+        setEditingSplit(null);
+        loadCards();
+      } catch (err: any) {
+        error('Error', err.message || 'Could not update friend expense.');
+      } finally {
+        setSplitSubmitting(false);
+      }
       return;
     }
 
@@ -1040,84 +1099,50 @@ export const CreditCardsView: React.FC = () => {
         </div>
 
         {/* 4 Split KPI Stat Cards */}
-        <div
-          style={{
-            display: 'grid',
-            gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))',
-            gap: '12px'
-          }}
-        >
-          {/* Total Statement Bill */}
-          <div
-            style={{
-              background: 'var(--bg-surface)',
-              padding: '14px',
-              borderRadius: 'var(--radius-md)',
-              border: '1px solid var(--border-subtle)'
-            }}
-          >
-            <div style={{ fontSize: '0.72rem', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase' }}>
-              {activeSplitCard ? `${activeSplitCard.name} Bill` : 'Total Statement Dues'}
+        <div className="credit-split-kpis">
+          {/* Card 1: Total Card Statement Bill / Dues */}
+          <div className="credit-split-kpi-item">
+            <div className="credit-split-kpi-label" style={{ color: 'var(--text-muted)' }}>
+              {activeSplitCard ? `${activeSplitCard.name} Bill` : 'Total Card Bills / Dues'}
             </div>
-            <div style={{ fontSize: '1.35rem', fontWeight: 800, color: '#f43f5e', marginTop: '4px' }}>
-              {formatCurrency(activeSplitCard ? activeSplitCard.usedAmount : splitStats.total, 'INR')}
+            <div className="credit-split-kpi-val" style={{ color: '#f43f5e' }}>
+              {formatCurrency(activeSplitCard ? activeSplitCard.usedAmount : (totalUsed > 0 ? totalUsed : splitStats.total), 'INR')}
             </div>
-            <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', marginTop: '2px' }}>
-              {activeSplitCard?.dueDate ? `Due on ${activeSplitCard.dueDate}` : 'Total card dues'}
+            <div className="credit-split-kpi-sub">
+              {activeSplitCard?.dueDate ? `Due on ${activeSplitCard.dueDate}` : 'Combined card statement bill'}
             </div>
           </div>
 
-          {/* My Share (Self) */}
-          <div
-            style={{
-              background: 'var(--bg-surface)',
-              padding: '14px',
-              borderRadius: 'var(--radius-md)',
-              border: '1px solid var(--border-subtle)'
-            }}
-          >
-            <div style={{ fontSize: '0.72rem', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase' }}>
+          {/* Card 2: My Share (Self) */}
+          <div className="credit-split-kpi-item">
+            <div className="credit-split-kpi-label" style={{ color: 'var(--text-muted)' }}>
               👤 My Share (Self)
             </div>
-            <div style={{ fontSize: '1.35rem', fontWeight: 800, color: 'var(--primary)', marginTop: '4px' }}>
+            <div className="credit-split-kpi-val" style={{ color: 'var(--primary)' }}>
               {formatCurrency(splitStats.self, 'INR')}
             </div>
-            <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', marginTop: '2px' }}>
+            <div className="credit-split-kpi-sub">
               Your personal spending
             </div>
           </div>
 
-          {/* Friends' Total */}
-          <div
-            style={{
-              background: 'var(--bg-surface)',
-              padding: '14px',
-              borderRadius: 'var(--radius-md)',
-              border: '1px solid var(--border-subtle)'
-            }}
-          >
-            <div style={{ fontSize: '0.72rem', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase' }}>
+          {/* Card 3: Friends' Total */}
+          <div className="credit-split-kpi-item">
+            <div className="credit-split-kpi-label" style={{ color: 'var(--text-muted)' }}>
               👥 Friends' Share
             </div>
-            <div style={{ fontSize: '1.35rem', fontWeight: 800, color: '#8b5cf6', marginTop: '4px' }}>
+            <div className="credit-split-kpi-val" style={{ color: '#8b5cf6' }}>
               {formatCurrency(splitStats.friends, 'INR')}
             </div>
-            <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', marginTop: '2px' }}>
+            <div className="credit-split-kpi-sub">
               Settled: {formatCurrency(splitStats.settled, 'INR')}
             </div>
           </div>
 
-          {/* Pending to Collect from Friends */}
-          <div
-            style={{
-              background: 'var(--bg-surface)',
-              padding: '14px',
-              borderRadius: 'var(--radius-md)',
-              border: '1px solid rgba(245, 158, 11, 0.3)'
-            }}
-          >
+          {/* Card 4: Pending to Collect from Friends */}
+          <div className="credit-split-kpi-item" style={{ border: '1px solid rgba(245, 158, 11, 0.35)' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <span style={{ fontSize: '0.72rem', fontWeight: 700, color: '#f59e0b', textTransform: 'uppercase' }}>
+              <span className="credit-split-kpi-label" style={{ color: '#f59e0b' }}>
                 ⏳ Pending to Collect
               </span>
               {splitStats.pendingCount > 0 && (
@@ -1126,10 +1151,10 @@ export const CreditCardsView: React.FC = () => {
                 </span>
               )}
             </div>
-            <div style={{ fontSize: '1.35rem', fontWeight: 800, color: '#f59e0b', marginTop: '4px' }}>
+            <div className="credit-split-kpi-val" style={{ color: '#f59e0b' }}>
               {formatCurrency(splitStats.pending, 'INR')}
             </div>
-            <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', marginTop: '2px' }}>
+            <div className="credit-split-kpi-sub">
               Unsettled friend payments
             </div>
           </div>
@@ -1204,21 +1229,7 @@ export const CreditCardsView: React.FC = () => {
         ) : (
           <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
             {displayedSplits.map((item) => (
-              <div
-                key={item.id}
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'space-between',
-                  padding: '12px 16px',
-                  borderRadius: 'var(--radius-md)',
-                  background: 'var(--bg-surface)',
-                  border: '1px solid var(--border-subtle)',
-                  transition: 'all 0.2s ease',
-                  flexWrap: 'wrap',
-                  gap: '10px'
-                }}
-              >
+              <div key={item.id} className="swiped-record-item">
                 {/* Left: Avatar & Person Info */}
                 <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
                   <div
@@ -1232,7 +1243,8 @@ export const CreditCardsView: React.FC = () => {
                       alignItems: 'center',
                       justifyContent: 'center',
                       fontWeight: 800,
-                      fontSize: '0.9rem'
+                      fontSize: '0.9rem',
+                      flexShrink: 0
                     }}
                   >
                     {item.isSelf ? '👤' : item.personName.charAt(0).toUpperCase()}
@@ -1264,7 +1276,7 @@ export const CreditCardsView: React.FC = () => {
                 </div>
 
                 {/* Right: Amount & Action Toggle */}
-                <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
+                <div className="swiped-record-actions-row" style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
                   <div style={{ textAlign: 'right' }}>
                     <div style={{ fontWeight: 800, fontSize: '1.05rem', color: item.isSelf ? 'var(--text-primary)' : item.status === 'settled' ? '#10b981' : '#f59e0b' }}>
                       {formatCurrency(item.amount, 'INR')}
@@ -1275,6 +1287,29 @@ export const CreditCardsView: React.FC = () => {
                   </div>
 
                   <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    <button
+                      type="button"
+                      onClick={() => handleOpenEditSplit(item.cardId, item)}
+                      style={{
+                        background: 'rgba(255, 255, 255, 0.08)',
+                        color: 'var(--text-secondary)',
+                        border: '1px solid var(--border-subtle)',
+                        borderRadius: 'var(--radius-sm)',
+                        padding: '6px 8px',
+                        fontSize: '0.74rem',
+                        fontWeight: 600,
+                        cursor: 'pointer',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '4px',
+                        transition: 'all 0.2s ease'
+                      }}
+                      title="Edit swipe details"
+                    >
+                      <Edit3 size={13} />
+                      <span>Edit</span>
+                    </button>
+
                     {!item.isSelf && (
                       <button
                         type="button"
@@ -1534,11 +1569,14 @@ export const CreditCardsView: React.FC = () => {
         </form>
       </Modal>
 
-      {/* Modal 3: Add Swiped Expense / Friend Split Modal */}
+      {/* Modal 3: Add/Edit Swiped Expense / Friend Split Modal */}
       <Modal
         isOpen={isSplitModalOpen}
-        onClose={() => setIsSplitModalOpen(false)}
-        title="Record Card Swipe / Friend Split"
+        onClose={() => {
+          setIsSplitModalOpen(false);
+          setEditingSplit(null);
+        }}
+        title={editingSplit ? 'Edit Swiped Expense / Friend Split' : 'Record Card Swipe / Friend Split'}
         maxWidth="480px"
       >
         <form onSubmit={handleSaveSplit} style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
@@ -1783,7 +1821,7 @@ export const CreditCardsView: React.FC = () => {
               className="btn btn-primary"
               style={{ flex: 2, justifyContent: 'center' }}
             >
-              {splitSubmitting ? 'Recording...' : '+ Save Swiped Record'}
+              {splitSubmitting ? 'Saving...' : editingSplit ? 'Save Changes' : '+ Save Swiped Record'}
             </button>
           </div>
         </form>
