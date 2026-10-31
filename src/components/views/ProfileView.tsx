@@ -5,10 +5,17 @@ import { ProfileCompletion } from '../profile/ProfileCompletion';
 import { ProfileInfoCard } from '../profile/ProfileInfoCard';
 import { ContactInfoCard } from '../profile/ContactInfoCard';
 import { EditProfileModal } from '../profile/EditProfileModal';
+import { AccountSummary } from '../profile/AccountSummary';
+import { Modal } from '../common/Modal';
 
-export const ProfileView: React.FC = () => {
-  const { profile } = useProfile();
+interface ProfileViewProps {
+  onNavigateTab?: (tabId: any) => void;
+}
+
+export const ProfileView: React.FC<ProfileViewProps> = ({ onNavigateTab }) => {
+  const { profile, addAccount, updateAccount, deleteAccount } = useProfile();
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [isAccountsModalOpen, setIsAccountsModalOpen] = useState(false);
   const [editTab, setEditTab] = useState<'personal' | 'contact'>('personal');
 
   const handleOpenEdit = (tab: 'personal' | 'contact' = 'personal') => {
@@ -18,11 +25,26 @@ export const ProfileView: React.FC = () => {
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-      {/* Luxury Master Profile Header */}
-      <ProfileHeader onEditClick={() => handleOpenEdit('personal')} />
+      {/* Luxury Master Profile Header with Clickable Stats */}
+      <ProfileHeader
+        onEditClick={() => handleOpenEdit('personal')}
+        onNavigateTab={onNavigateTab}
+        onOpenAccounts={() => setIsAccountsModalOpen(true)}
+      />
 
       {/* Dynamic Profile Completion Gauge */}
       <ProfileCompletion onCompleteClick={() => handleOpenEdit('personal')} />
+
+      {/* Connected Accounts & Cards Section */}
+      <div id="connected-accounts-section">
+        <AccountSummary
+          accounts={profile.accounts}
+          currency={profile.financial.currency}
+          onAddAccount={addAccount}
+          onUpdateAccount={updateAccount}
+          onDeleteAccount={deleteAccount}
+        />
+      </div>
 
       {/* Personal & Contact Details Cards */}
       <div className="card-grid-2col">
@@ -42,6 +64,24 @@ export const ProfileView: React.FC = () => {
         onClose={() => setIsEditModalOpen(false)}
         initialTab={editTab}
       />
+
+      {/* Connected Accounts Quick Modal (Opened when clicking Connected Accounts in Header Stats) */}
+      <Modal
+        isOpen={isAccountsModalOpen}
+        onClose={() => setIsAccountsModalOpen(false)}
+        title="Manage Connected Accounts & Cards"
+        maxWidth="820px"
+      >
+        <div style={{ padding: '8px 0' }}>
+          <AccountSummary
+            accounts={profile.accounts}
+            currency={profile.financial.currency}
+            onAddAccount={addAccount}
+            onUpdateAccount={updateAccount}
+            onDeleteAccount={deleteAccount}
+          />
+        </div>
+      </Modal>
     </div>
   );
 };

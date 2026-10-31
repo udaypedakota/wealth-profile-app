@@ -15,7 +15,9 @@ import {
   CreditCard,
   Building2,
   Calendar,
-  Sparkles
+  Sparkles,
+  Plus,
+  Receipt
 } from 'lucide-react';
 
 interface CategoryItem {
@@ -50,111 +52,75 @@ interface FinancialChartsSectionProps {
   chitsList?: ChitProgressItem[];
   recentTransactions?: any[];
   creditCardData?: any;
+  monthlyCashFlow?: { month: string; inflow: number; outflow: number }[];
   onNavigateTab?: (tabId: string) => void;
 }
 
-// 12-Month cash flow data modeled directly from reference mockup
-const DEFAULT_MONTHLY_CASH_FLOW = [
-  { month: 'Jan', inflow: 45000, outflow: 28500 },
-  { month: 'Feb', inflow: 48000, outflow: 29000 },
-  { month: 'Mar', inflow: 50000, outflow: 30000 },
-  { month: 'Apr', inflow: 52000, outflow: 31500 },
-  { month: 'May', inflow: 58000, outflow: 34000 },
-  { month: 'Jun', inflow: 62000, outflow: 36000 },
-  { month: 'Jul', inflow: 60000, outflow: 33000 },
-  { month: 'Aug', inflow: 61000, outflow: 35000 },
-  { month: 'Sep', inflow: 64000, outflow: 36500 },
-  { month: 'Oct', inflow: 65000, outflow: 38000 },
-  { month: 'Nov', inflow: 68000, outflow: 39500 },
-  { month: 'Dec', inflow: 72000, outflow: 42000 }
+const EMPTY_MONTHLY_CASH_FLOW = [
+  { month: 'Jan', inflow: 0, outflow: 0 },
+  { month: 'Feb', inflow: 0, outflow: 0 },
+  { month: 'Mar', inflow: 0, outflow: 0 },
+  { month: 'Apr', inflow: 0, outflow: 0 },
+  { month: 'May', inflow: 0, outflow: 0 },
+  { month: 'Jun', inflow: 0, outflow: 0 },
+  { month: 'Jul', inflow: 0, outflow: 0 },
+  { month: 'Aug', inflow: 0, outflow: 0 },
+  { month: 'Sep', inflow: 0, outflow: 0 },
+  { month: 'Oct', inflow: 0, outflow: 0 },
+  { month: 'Nov', inflow: 0, outflow: 0 },
+  { month: 'Dec', inflow: 0, outflow: 0 }
 ];
 
-// Target category distribution matching reference design
-const DEFAULT_CATEGORIES = [
-  { name: 'Food & Dining', percent: 32, color: '#3b82f6', amount: 9120 },
-  { name: 'Transport', percent: 18, color: '#f97316', amount: 5130 },
-  { name: 'Bills & Utilities', percent: 15, color: '#f59e0b', amount: 4275 },
-  { name: 'Shopping', percent: 12, color: '#06b6d4', amount: 3420 },
-  { name: 'EMIs & Loans', percent: 10, color: '#8b5cf6', amount: 2850 },
-  { name: 'Others', percent: 13, color: '#10b981', amount: 3705 }
-];
-
-// Reference styled recent transactions matching mockup
-const DEFAULT_RECENT_TRANSACTIONS = [
-  {
-    id: 'tx_default_01',
-    title: 'Salary Credit',
-    subtitle: 'Income • HDFC Bank',
-    amount: 45000,
-    type: 'credit',
-    date: 'Oct 21, 2026',
-    icon: Wallet,
-    iconBg: 'rgba(16, 185, 129, 0.12)',
-    iconColor: '#10b981'
-  },
-  {
-    id: 'tx_default_02',
-    title: 'Grocery Shopping',
-    subtitle: 'Expense • More Supermarket',
-    amount: 2350,
-    type: 'debit',
-    date: 'Oct 20, 2026',
-    icon: ShoppingCart,
-    iconBg: 'rgba(244, 63, 94, 0.12)',
-    iconColor: '#f43f5e'
-  },
-  {
-    id: 'tx_default_03',
-    title: 'Electricity Bill',
-    subtitle: 'Bills • TSSPDCL',
-    amount: 1200,
-    type: 'debit',
-    date: 'Oct 18, 2026',
-    icon: Zap,
-    iconBg: 'rgba(245, 158, 11, 0.12)',
-    iconColor: '#f59e0b'
-  },
-  {
-    id: 'tx_default_04',
-    title: 'Fuel',
-    subtitle: 'Indian Oil',
-    amount: 1800,
-    type: 'debit',
-    date: 'Oct 15, 2026',
-    icon: Fuel,
-    iconBg: 'rgba(59, 130, 246, 0.12)',
-    iconColor: '#3b82f6'
-  }
-];
+function formatCompactNumber(num: number): string {
+  if (num >= 10000000) return `${(num / 10000000).toFixed(1)}Cr`;
+  if (num >= 100000) return `${(num / 100000).toFixed(1)}L`;
+  if (num >= 1000) return `${Math.round(num / 1000)}K`;
+  return `${num}`;
+}
 
 export const FinancialChartsSection: React.FC<FinancialChartsSectionProps> = ({
   balances,
   categoryBreakdown = [],
   chitsList = [],
   recentTransactions = [],
+  monthlyCashFlow,
   onNavigateTab
 }) => {
   const [activeTab, setActiveTab] = useState<'cashflow' | 'categories' | 'chits'>('cashflow');
   const [selectedMonthRange, setSelectedMonthRange] = useState<'thisMonth' | 'allYear'>('thisMonth');
   const [hoveredMonth, setHoveredMonth] = useState<number | null>(null);
 
-  // Dynamic monthly cash flow: sync current month with live balances
-  const monthlyData = DEFAULT_MONTHLY_CASH_FLOW.map((m, idx) => {
-    if (idx === 9) { // October (index 9)
-      const dynamicInflow = Number(balances.thisMonthIncome || balances.monthlyIncome || 45000);
-      const dynamicOutflow = Number(balances.thisMonthExpense || 28500);
-      return {
-        ...m,
-        inflow: dynamicInflow > 0 ? dynamicInflow : m.inflow,
-        outflow: dynamicOutflow > 0 ? dynamicOutflow : m.outflow
-      };
+  // Dynamic monthly cash flow: sync current month with live balances or server records
+  const monthlyData = React.useMemo(() => {
+    if (Array.isArray(monthlyCashFlow) && monthlyCashFlow.length === 12) {
+      return monthlyCashFlow;
     }
-    return m;
-  });
+    const currentMonthIdx = new Date().getMonth();
+    return EMPTY_MONTHLY_CASH_FLOW.map((m, idx) => {
+      if (idx === currentMonthIdx) {
+        return {
+          ...m,
+          inflow: Number(balances.thisMonthIncome || balances.monthlyIncome || 0),
+          outflow: Number(balances.thisMonthExpense || 0)
+        };
+      }
+      return m;
+    });
+  }, [monthlyCashFlow, balances]);
 
-  const maxVal = 80000;
+  const maxVal = React.useMemo(() => {
+    const highest = Math.max(
+      ...monthlyData.map((d) => Math.max(d.inflow, d.outflow)),
+      Number(balances.thisMonthIncome || 0),
+      Number(balances.thisMonthExpense || 0)
+    );
+    return highest > 0 ? Math.ceil(highest * 1.15) : 50000;
+  }, [monthlyData, balances]);
 
-  // Categories calculation (dynamically merge or fall back to reference mockup)
+  const totalYearInflow = monthlyData.reduce((s, m) => s + m.inflow, 0);
+  const totalYearOutflow = monthlyData.reduce((s, m) => s + m.outflow, 0);
+
+  // Categories calculation (purely dynamic from real user records)
   const displayCategories = React.useMemo(() => {
     if (Array.isArray(categoryBreakdown) && categoryBreakdown.length > 0) {
       const palette = ['#3b82f6', '#f97316', '#f59e0b', '#06b6d4', '#8b5cf6', '#10b981'];
@@ -165,10 +131,10 @@ export const FinancialChartsSection: React.FC<FinancialChartsSectionProps> = ({
         color: palette[i % palette.length]
       }));
     }
-    return DEFAULT_CATEGORIES;
+    return [];
   }, [categoryBreakdown]);
 
-  const totalExpenseVal = displayCategories.reduce((s, c) => s + c.amount, 0) || Number(balances.thisMonthExpense || 28500);
+  const totalExpenseVal = displayCategories.reduce((s, c) => s + c.amount, 0) || Number(balances.thisMonthExpense || 0);
 
   // Compute SVG Donut Chart Slices
   let cumulative = 0;
@@ -183,11 +149,11 @@ export const FinancialChartsSection: React.FC<FinancialChartsSectionProps> = ({
     };
   });
 
-  // Recent transactions list: combine real user entries with reference fallback
+  // Recent transactions list: purely dynamic from real user entries
   const displayRecentTransactions = React.useMemo(() => {
     const list: any[] = [];
     if (Array.isArray(recentTransactions) && recentTransactions.length > 0) {
-      recentTransactions.slice(0, 4).forEach((tx) => {
+      recentTransactions.slice(0, 5).forEach((tx) => {
         const isCredit = tx.type === 'credit';
         let IconComp = isCredit ? Wallet : ShoppingCart;
         let iconBg = isCredit ? 'rgba(16, 185, 129, 0.12)' : 'rgba(244, 63, 94, 0.12)';
@@ -206,7 +172,7 @@ export const FinancialChartsSection: React.FC<FinancialChartsSectionProps> = ({
 
         list.push({
           id: tx.id || String(Math.random()),
-          title: tx.title,
+          title: tx.title || (isCredit ? 'Income Received' : 'Expense Recorded'),
           subtitle: `${isCredit ? 'Income' : 'Expense'} • ${tx.account || 'Vault'}`,
           amount: Number(tx.amount || 0),
           type: tx.type,
@@ -217,14 +183,6 @@ export const FinancialChartsSection: React.FC<FinancialChartsSectionProps> = ({
         });
       });
     }
-
-    // Fill remaining rows if fewer than 4
-    let fillIdx = 0;
-    while (list.length < 4 && fillIdx < DEFAULT_RECENT_TRANSACTIONS.length) {
-      list.push(DEFAULT_RECENT_TRANSACTIONS[fillIdx]);
-      fillIdx++;
-    }
-
     return list;
   }, [recentTransactions]);
 
@@ -357,6 +315,27 @@ export const FinancialChartsSection: React.FC<FinancialChartsSectionProps> = ({
         {/* Tab 1: 12-Month Dual Bar Chart */}
         {activeTab === 'cashflow' && (
           <div>
+            {/* Zero State Notice if user has no cash flow activity */}
+            {totalYearInflow === 0 && totalYearOutflow === 0 && (
+              <div
+                style={{
+                  padding: '8px 14px',
+                  background: 'rgba(9, 92, 229, 0.05)',
+                  border: '1px dashed rgba(9, 92, 229, 0.2)',
+                  borderRadius: '10px',
+                  fontSize: '0.76rem',
+                  color: '#095ce5',
+                  marginBottom: '12px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '8px'
+                }}
+              >
+                <Sparkles size={14} />
+                <span>No cash flow entries recorded yet this year. Tap <strong>+ Add Income</strong> or <strong>Record Expense</strong> above to plot your real trends.</span>
+              </div>
+            )}
+
             {/* Chart Legend on Top Right */}
             <div style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', gap: '18px', marginBottom: '14px' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.78rem', fontWeight: 600, color: '#475569' }}>
@@ -386,10 +365,10 @@ export const FinancialChartsSection: React.FC<FinancialChartsSectionProps> = ({
                   paddingRight: '8px'
                 }}
               >
-                <span>80K</span>
-                <span>60K</span>
-                <span>40K</span>
-                <span>20K</span>
+                <span>{formatCompactNumber(maxVal)}</span>
+                <span>{formatCompactNumber(Math.round(maxVal * 0.75))}</span>
+                <span>{formatCompactNumber(Math.round(maxVal * 0.5))}</span>
+                <span>{formatCompactNumber(Math.round(maxVal * 0.25))}</span>
                 <span>0</span>
               </div>
 
@@ -597,28 +576,44 @@ export const FinancialChartsSection: React.FC<FinancialChartsSectionProps> = ({
               )}
             </div>
 
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: '12px' }}>
-              {(chitsList.length > 0 ? chitsList : [
-                { id: '1', name: '₹1 Lakh Wedding Pool', totalAmount: 100000, paidAmount: 40000, remainingAmount: 60000, progressPercent: 40, monthlyAmount: 5000 },
-                { id: '2', name: '₹50,000 Emergency Chit', totalAmount: 50000, paidAmount: 35000, remainingAmount: 15000, progressPercent: 70, monthlyAmount: 2500 }
-              ]).map((chit) => (
-                <div key={chit.id} style={{ padding: '14px', borderRadius: '12px', background: '#f8fafc', border: '1px solid #e2e8f0' }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
-                    <span style={{ fontWeight: 700, fontSize: '0.85rem', color: '#0f294a' }}>{chit.name}</span>
-                    <span style={{ fontSize: '0.72rem', fontWeight: 700, color: '#095ce5', background: 'rgba(9, 92, 229, 0.1)', padding: '2px 8px', borderRadius: '9999px' }}>
-                      {chit.progressPercent}%
-                    </span>
+            {chitsList.length === 0 ? (
+              <div style={{ padding: '32px 16px', textAlign: 'center', background: '#f8fafc', borderRadius: '12px', border: '1px dashed #cbd5e1' }}>
+                <Layers size={32} style={{ color: '#94a3b8', marginBottom: '8px' }} />
+                <h4 style={{ margin: '0 0 4px', fontSize: '0.95rem', color: '#0f294a' }}>No Active Chit Funds</h4>
+                <p style={{ margin: '0 0 14px', fontSize: '0.78rem', color: '#64748b' }}>
+                  Track your monthly community chit pools, auctions, and dividend payouts.
+                </p>
+                {onNavigateTab && (
+                  <button
+                    type="button"
+                    onClick={() => onNavigateTab('chits')}
+                    className="btn btn-primary btn-sm"
+                  >
+                    <Plus size={14} /> Link Chit Fund
+                  </button>
+                )}
+              </div>
+            ) : (
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: '12px' }}>
+                {chitsList.map((chit) => (
+                  <div key={chit.id} style={{ padding: '14px', borderRadius: '12px', background: '#f8fafc', border: '1px solid #e2e8f0' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+                      <span style={{ fontWeight: 700, fontSize: '0.85rem', color: '#0f294a' }}>{chit.name}</span>
+                      <span style={{ fontSize: '0.72rem', fontWeight: 700, color: '#095ce5', background: 'rgba(9, 92, 229, 0.1)', padding: '2px 8px', borderRadius: '9999px' }}>
+                        {chit.progressPercent}%
+                      </span>
+                    </div>
+                    <div style={{ height: '6px', borderRadius: '9999px', background: '#e2e8f0', overflow: 'hidden', marginBottom: '8px' }}>
+                      <div style={{ width: `${chit.progressPercent}%`, height: '100%', background: 'linear-gradient(90deg, #095ce5, #38bdf8)' }} />
+                    </div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.72rem', color: '#64748b' }}>
+                      <span>Paid: <strong style={{ color: '#10b981' }}>₹{chit.paidAmount.toLocaleString('en-IN')}</strong></span>
+                      <span>Target: <strong>₹{chit.totalAmount.toLocaleString('en-IN')}</strong></span>
+                    </div>
                   </div>
-                  <div style={{ height: '6px', borderRadius: '9999px', background: '#e2e8f0', overflow: 'hidden', marginBottom: '8px' }}>
-                    <div style={{ width: `${chit.progressPercent}%`, height: '100%', background: 'linear-gradient(90deg, #095ce5, #38bdf8)' }} />
-                  </div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.72rem', color: '#64748b' }}>
-                    <span>Paid: <strong style={{ color: '#10b981' }}>₹{chit.paidAmount.toLocaleString('en-IN')}</strong></span>
-                    <span>Target: <strong>₹{chit.totalAmount.toLocaleString('en-IN')}</strong></span>
-                  </div>
-                </div>
-              ))}
-            </div>
+                ))}
+              </div>
+            )}
           </div>
         )}
       </div>
@@ -692,76 +687,110 @@ export const FinancialChartsSection: React.FC<FinancialChartsSectionProps> = ({
           </div>
 
           {/* Donut Chart & Category Breakdown Side-by-Side */}
-          <div
-            style={{
-              display: 'grid',
-              gridTemplateColumns: '1fr 1fr',
-              alignItems: 'center',
-              gap: '16px'
-            }}
-          >
-            {/* SVG Donut Chart */}
-            <div style={{ position: 'relative', width: '150px', height: '150px', margin: '0 auto' }}>
-              <svg viewBox="0 0 42 42" style={{ width: '100%', height: '100%', transform: 'rotate(-90deg)', borderRadius: '50%' }}>
-                <circle cx="21" cy="21" r="15.915" fill="transparent" stroke="#f1f5f9" strokeWidth="5.8" />
-                {donutSlices.map((slice, idx) => (
-                  <circle
-                    key={idx}
-                    cx="21"
-                    cy="21"
-                    r="15.915"
-                    fill="transparent"
-                    stroke={slice.color}
-                    strokeWidth="5.8"
-                    strokeDasharray={slice.strokeDasharray}
-                    strokeDashoffset={slice.strokeDashoffset}
-                    style={{ transition: 'all 0.3s ease' }}
-                  />
-                ))}
-              </svg>
-
-              {/* Center Total Hub */}
+          {displayCategories.length === 0 ? (
+            <div style={{ padding: '36px 16px', textAlign: 'center' }}>
               <div
                 style={{
-                  position: 'absolute',
-                  top: '50%',
-                  left: '50%',
-                  transform: 'translate(-50%, -50%)',
-                  textAlign: 'center',
-                  width: '100px'
+                  width: '48px',
+                  height: '48px',
+                  borderRadius: '50%',
+                  background: 'rgba(9, 92, 229, 0.08)',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  color: '#095ce5',
+                  marginBottom: '10px'
                 }}
               >
+                <PieChart size={24} />
+              </div>
+              <div style={{ fontWeight: 700, fontSize: '0.95rem', color: '#0f294a' }}>No Expenses Recorded</div>
+              <p style={{ fontSize: '0.78rem', color: '#64748b', margin: '4px 0 16px' }}>
+                Record your daily spending to see your automated category breakdown.
+              </p>
+              {onNavigateTab && (
+                <button
+                  type="button"
+                  onClick={() => onNavigateTab('transactions')}
+                  className="btn btn-secondary btn-sm"
+                  style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}
+                >
+                  <Plus size={14} /> Record Expense
+                </button>
+              )}
+            </div>
+          ) : (
+            <div
+              style={{
+                display: 'grid',
+                gridTemplateColumns: '1fr 1fr',
+                alignItems: 'center',
+                gap: '16px'
+              }}
+            >
+              {/* SVG Donut Chart */}
+              <div style={{ position: 'relative', width: '150px', height: '150px', margin: '0 auto' }}>
+                <svg viewBox="0 0 42 42" style={{ width: '100%', height: '100%', transform: 'rotate(-90deg)', borderRadius: '50%' }}>
+                  <circle cx="21" cy="21" r="15.915" fill="transparent" stroke="#f1f5f9" strokeWidth="5.8" />
+                  {donutSlices.map((slice, idx) => (
+                    <circle
+                      key={idx}
+                      cx="21"
+                      cy="21"
+                      r="15.915"
+                      fill="transparent"
+                      stroke={slice.color}
+                      strokeWidth="5.8"
+                      strokeDasharray={slice.strokeDasharray}
+                      strokeDashoffset={slice.strokeDashoffset}
+                      style={{ transition: 'all 0.3s ease' }}
+                    />
+                  ))}
+                </svg>
+
+                {/* Center Total Hub */}
                 <div
                   style={{
-                    fontFamily: 'var(--font-display)',
-                    fontSize: '1.18rem',
-                    fontWeight: 800,
-                    color: '#0f294a',
-                    letterSpacing: '-0.02em',
-                    lineHeight: 1.1
+                    position: 'absolute',
+                    top: '50%',
+                    left: '50%',
+                    transform: 'translate(-50%, -50%)',
+                    textAlign: 'center',
+                    width: '100px'
                   }}
                 >
-                  ₹{totalExpenseVal.toLocaleString('en-IN')}
+                  <div
+                    style={{
+                      fontFamily: 'var(--font-display)',
+                      fontSize: '1.18rem',
+                      fontWeight: 800,
+                      color: '#0f294a',
+                      letterSpacing: '-0.02em',
+                      lineHeight: 1.1
+                    }}
+                  >
+                    ₹{totalExpenseVal.toLocaleString('en-IN')}
+                  </div>
+                  <div style={{ fontSize: '0.72rem', color: '#64748b', marginTop: '2px' }}>Total</div>
                 </div>
-                <div style={{ fontSize: '0.72rem', color: '#64748b', marginTop: '2px' }}>Total</div>
+              </div>
+
+              {/* Category Percentages List */}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                {displayCategories.map((item, idx) => (
+                  <div key={idx} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: '0.78rem' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '7px', minWidth: 0 }}>
+                      <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: item.color, flexShrink: 0 }} />
+                      <span style={{ fontWeight: 600, color: '#334155', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                        {item.name}
+                      </span>
+                    </div>
+                    <span style={{ fontWeight: 700, color: '#0f294a', marginLeft: '6px' }}>{item.percent}%</span>
+                  </div>
+                ))}
               </div>
             </div>
-
-            {/* Category Percentages List */}
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-              {displayCategories.map((item, idx) => (
-                <div key={idx} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: '0.78rem' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '7px', minWidth: 0 }}>
-                    <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: item.color, flexShrink: 0 }} />
-                    <span style={{ fontWeight: 600, color: '#334155', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                      {item.name}
-                    </span>
-                  </div>
-                  <span style={{ fontWeight: 700, color: '#0f294a', marginLeft: '6px' }}>{item.percent}%</span>
-                </div>
-              ))}
-            </div>
-          </div>
+          )}
         </div>
 
         {/* ===================== RIGHT CARD: RECENT TRANSACTIONS ===================== */}
@@ -824,72 +853,106 @@ export const FinancialChartsSection: React.FC<FinancialChartsSectionProps> = ({
             )}
           </div>
 
-          {/* 4 Clean Styled Rows */}
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-            {displayRecentTransactions.map((tx) => {
-              const IconComp = tx.icon || Wallet;
-              const isCredit = tx.type === 'credit';
-
-              return (
-                <div
-                  key={tx.id}
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'space-between',
-                    padding: '8px 6px',
-                    borderRadius: '10px',
-                    transition: 'background 0.15s ease'
-                  }}
+          {/* Clean Styled Rows or Zero State */}
+          {displayRecentTransactions.length === 0 ? (
+            <div style={{ padding: '36px 16px', textAlign: 'center' }}>
+              <div
+                style={{
+                  width: '48px',
+                  height: '48px',
+                  borderRadius: '50%',
+                  background: 'rgba(9, 92, 229, 0.08)',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  color: '#095ce5',
+                  marginBottom: '10px'
+                }}
+              >
+                <Receipt size={24} />
+              </div>
+              <div style={{ fontWeight: 700, fontSize: '0.95rem', color: '#0f294a' }}>No Transactions Yet</div>
+              <p style={{ fontSize: '0.78rem', color: '#64748b', margin: '4px 0 16px' }}>
+                Your real-time daily incomes and expenses will appear here.
+              </p>
+              {onNavigateTab && (
+                <button
+                  type="button"
+                  onClick={() => onNavigateTab('transactions')}
+                  className="btn btn-primary btn-sm"
+                  style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}
                 >
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '12px', minWidth: 0 }}>
-                    {/* Circle Icon Badge */}
-                    <div
-                      style={{
-                        width: '38px',
-                        height: '38px',
-                        borderRadius: '50%',
-                        background: tx.iconBg,
-                        color: tx.iconColor,
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        flexShrink: 0
-                      }}
-                    >
-                      <IconComp size={18} />
+                  <Plus size={14} /> Add Transaction
+                </button>
+              )}
+            </div>
+          ) : (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+              {displayRecentTransactions.map((tx) => {
+                const IconComp = tx.icon || Wallet;
+                const isCredit = tx.type === 'credit';
+
+                return (
+                  <div
+                    key={tx.id}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                      padding: '8px 6px',
+                      borderRadius: '10px',
+                      transition: 'background 0.15s ease'
+                    }}
+                  >
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '12px', minWidth: 0 }}>
+                      {/* Circle Icon Badge */}
+                      <div
+                        style={{
+                          width: '38px',
+                          height: '38px',
+                          borderRadius: '50%',
+                          background: tx.iconBg,
+                          color: tx.iconColor,
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          flexShrink: 0
+                        }}
+                      >
+                        <IconComp size={18} />
+                      </div>
+
+                      <div style={{ minWidth: 0 }}>
+                        <div style={{ fontWeight: 700, fontSize: '0.88rem', color: '#0f294a', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                          {tx.title}
+                        </div>
+                        <div style={{ fontSize: '0.72rem', color: '#64748b', marginTop: '1px' }}>
+                          {tx.subtitle}
+                        </div>
+                      </div>
                     </div>
 
-                    <div style={{ minWidth: 0 }}>
-                      <div style={{ fontWeight: 700, fontSize: '0.88rem', color: '#0f294a', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                        {tx.title}
+                    {/* Amount & Date on Right */}
+                    <div style={{ textAlign: 'right', flexShrink: 0, paddingLeft: '8px' }}>
+                      <div
+                        style={{
+                          fontFamily: 'var(--font-display)',
+                          fontWeight: 800,
+                          fontSize: '0.92rem',
+                          color: isCredit ? '#10b981' : '#ef4444'
+                        }}
+                      >
+                        {isCredit ? `+₹${tx.amount.toLocaleString('en-IN')}` : `-₹${tx.amount.toLocaleString('en-IN')}`}
                       </div>
-                      <div style={{ fontSize: '0.72rem', color: '#64748b', marginTop: '1px' }}>
-                        {tx.subtitle}
+                      <div style={{ fontSize: '0.7rem', color: '#94a3b8', marginTop: '1px' }}>
+                        {tx.date}
                       </div>
                     </div>
                   </div>
-
-                  {/* Amount & Date on Right */}
-                  <div style={{ textAlign: 'right', flexShrink: 0, paddingLeft: '8px' }}>
-                    <div
-                      style={{
-                        fontFamily: 'var(--font-display)',
-                        fontWeight: 800,
-                        fontSize: '0.92rem',
-                        color: isCredit ? '#10b981' : '#ef4444'
-                      }}
-                    >
-                      {isCredit ? `+₹${tx.amount.toLocaleString('en-IN')}` : `-₹${tx.amount.toLocaleString('en-IN')}`}
-                    </div>
-                    <div style={{ fontSize: '0.7rem', color: '#94a3b8', marginTop: '1px' }}>
-                      {tx.date}
-                    </div>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
+                );
+              })}
+            </div>
+          )}
         </div>
       </div>
     </div>

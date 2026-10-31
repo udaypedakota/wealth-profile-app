@@ -356,7 +356,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ onNavigatePage }) 
       <div className="dashboard-mobile-greeting">
         <div style={{ flex: '1 1 auto', minWidth: 0 }}>
           <h1 className="mobile-greeting-heading">
-            Good Morning, {data?.user?.firstName || 'Uday'}! 👋
+            Good Morning, {data?.user?.firstName || data?.user?.fullName?.split(' ')[0] || 'Member'}! 👋
           </h1>
           <p className="mobile-greeting-subheading">Your financial journey at a glance</p>
         </div>
@@ -463,275 +463,368 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ onNavigatePage }) 
 
       {/* ==========================================================================
           4 STAT METRIC CARDS (Desktop: 4 columns in a row, Mobile: 2x2 grid)
-          Matches user target design exactly: Inflow, Outflow, Net Savings, Budget
+          100% Dynamic data from live user balances - Zero fallback for new users
           ========================================================================== */}
-      <div className="stat-metric-grid">
-        {/* Card 1: Monthly Inflow */}
-        <div className="stat-metric-card">
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-              <div
-                style={{
-                  width: '38px',
-                  height: '38px',
-                  borderRadius: '50%',
-                  background: 'rgba(16, 185, 129, 0.14)',
-                  color: '#10b981',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  boxShadow: '0 2px 8px rgba(16, 185, 129, 0.15)'
-                }}
-              >
-                <ArrowDownLeft size={19} strokeWidth={2.5} />
+      {(() => {
+        const displayIncome = Number(balances.thisMonthIncome || balances.monthlyIncome || 0);
+        const displayExpense = Number(balances.thisMonthExpense || 0);
+        const displaySavings = Math.max(0, displayIncome - displayExpense);
+        const budgetLimit = Number(balances.monthlyBudget || 0);
+        const budgetUsedPercent = budgetLimit > 0 ? Math.min(100, Math.round((displayExpense / budgetLimit) * 100)) : 0;
+
+        return (
+          <div className="stat-metric-grid">
+            {/* Card 1: Monthly Inflow */}
+            <div className="stat-metric-card">
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                  <div
+                    style={{
+                      width: '38px',
+                      height: '38px',
+                      borderRadius: '50%',
+                      background: 'rgba(16, 185, 129, 0.14)',
+                      color: '#10b981',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      boxShadow: '0 2px 8px rgba(16, 185, 129, 0.15)'
+                    }}
+                  >
+                    <ArrowDownLeft size={19} strokeWidth={2.5} />
+                  </div>
+                  <div>
+                    <span style={{ fontSize: '0.82rem', fontWeight: 600, color: 'var(--text-muted)' }}>
+                      <span className="desktop-stat-label">Monthly Inflow</span>
+                      <span className="mobile-stat-label">Income</span>
+                    </span>
+                  </div>
+                </div>
+                {displayIncome > 0 ? (
+                  <span
+                    style={{
+                      fontSize: '0.72rem',
+                      fontWeight: 700,
+                      color: '#10b981',
+                      background: 'rgba(16, 185, 129, 0.1)',
+                      padding: '3px 8px',
+                      borderRadius: 'var(--radius-full)'
+                    }}
+                  >
+                    ↗ Active
+                  </span>
+                ) : (
+                  <span
+                    style={{
+                      fontSize: '0.72rem',
+                      fontWeight: 600,
+                      color: 'var(--text-dim)',
+                      background: 'var(--bg-surface)',
+                      padding: '3px 8px',
+                      borderRadius: 'var(--radius-full)'
+                    }}
+                  >
+                    ₹0
+                  </span>
+                )}
               </div>
-              <div>
-                <span style={{ fontSize: '0.82rem', fontWeight: 600, color: 'var(--text-muted)' }}>
-                  <span className="desktop-stat-label">Monthly Inflow</span>
-                  <span className="mobile-stat-label">Income</span>
-                </span>
+
+              <div style={{ marginTop: '14px', display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between' }}>
+                <div>
+                  <div style={{ fontSize: '1.45rem', fontWeight: 800, fontFamily: 'var(--font-display)', color: 'var(--text-primary)', letterSpacing: '-0.02em' }}>
+                    {formatCurrency(displayIncome, 'INR')}
+                  </div>
+                  <div style={{ fontSize: '0.72rem', color: 'var(--text-dim)', marginTop: '2px' }}>
+                    {displayIncome > 0 ? 'vs last month' : 'No income recorded'}
+                  </div>
+                </div>
+
+                {/* Sparkline Indicator */}
+                <div style={{ display: 'flex', alignItems: 'flex-end', gap: '3px', height: '26px' }}>
+                  {displayIncome > 0
+                    ? [35, 45, 60, 50, 75, 90, 100].map((h, i) => (
+                        <div
+                          key={i}
+                          style={{
+                            width: '4px',
+                            height: `${h}%`,
+                            background: i === 6 ? '#10b981' : 'rgba(16, 185, 129, 0.35)',
+                            borderRadius: '2px'
+                          }}
+                        />
+                      ))
+                    : [15, 15, 15, 15, 15, 15, 15].map((h, i) => (
+                        <div
+                          key={i}
+                          style={{
+                            width: '4px',
+                            height: `${h}%`,
+                            background: 'var(--border-subtle)',
+                            borderRadius: '2px'
+                          }}
+                        />
+                      ))}
+                </div>
               </div>
             </div>
-            <span
-              style={{
-                fontSize: '0.72rem',
-                fontWeight: 700,
-                color: '#10b981',
-                background: 'rgba(16, 185, 129, 0.1)',
-                padding: '3px 8px',
-                borderRadius: 'var(--radius-full)'
-              }}
-            >
-              ↗ +12%
-            </span>
+
+            {/* Card 2: Monthly Outflow */}
+            <div className="stat-metric-card">
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                  <div
+                    style={{
+                      width: '38px',
+                      height: '38px',
+                      borderRadius: '50%',
+                      background: 'rgba(239, 68, 68, 0.14)',
+                      color: '#ef4444',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      boxShadow: '0 2px 8px rgba(239, 68, 68, 0.15)'
+                    }}
+                  >
+                    <ArrowUpRight size={19} strokeWidth={2.5} />
+                  </div>
+                  <div>
+                    <span style={{ fontSize: '0.82rem', fontWeight: 600, color: 'var(--text-muted)' }}>
+                      <span className="desktop-stat-label">Monthly Outflow</span>
+                      <span className="mobile-stat-label">Expenses</span>
+                    </span>
+                  </div>
+                </div>
+                {displayExpense > 0 ? (
+                  <span
+                    style={{
+                      fontSize: '0.72rem',
+                      fontWeight: 700,
+                      color: '#ef4444',
+                      background: 'rgba(239, 68, 68, 0.1)',
+                      padding: '3px 8px',
+                      borderRadius: 'var(--radius-full)'
+                    }}
+                  >
+                    ↗ Active
+                  </span>
+                ) : (
+                  <span
+                    style={{
+                      fontSize: '0.72rem',
+                      fontWeight: 600,
+                      color: 'var(--text-dim)',
+                      background: 'var(--bg-surface)',
+                      padding: '3px 8px',
+                      borderRadius: 'var(--radius-full)'
+                    }}
+                  >
+                    ₹0
+                  </span>
+                )}
+              </div>
+
+              <div style={{ marginTop: '14px', display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between' }}>
+                <div>
+                  <div style={{ fontSize: '1.45rem', fontWeight: 800, fontFamily: 'var(--font-display)', color: 'var(--text-primary)', letterSpacing: '-0.02em' }}>
+                    {formatCurrency(displayExpense, 'INR')}
+                  </div>
+                  <div style={{ fontSize: '0.72rem', color: 'var(--text-dim)', marginTop: '2px' }}>
+                    {displayExpense > 0 ? 'vs last month' : 'No expenses recorded'}
+                  </div>
+                </div>
+
+                {/* Sparkline Indicator */}
+                <div style={{ display: 'flex', alignItems: 'flex-end', gap: '3px', height: '26px' }}>
+                  {displayExpense > 0
+                    ? [40, 55, 35, 70, 65, 80, 75].map((h, i) => (
+                        <div
+                          key={i}
+                          style={{
+                            width: '4px',
+                            height: `${h}%`,
+                            background: i === 6 ? '#ef4444' : 'rgba(239, 68, 68, 0.35)',
+                            borderRadius: '2px'
+                          }}
+                        />
+                      ))
+                    : [15, 15, 15, 15, 15, 15, 15].map((h, i) => (
+                        <div
+                          key={i}
+                          style={{
+                            width: '4px',
+                            height: `${h}%`,
+                            background: 'var(--border-subtle)',
+                            borderRadius: '2px'
+                          }}
+                        />
+                      ))}
+                </div>
+              </div>
+            </div>
+
+            {/* Card 3: Net Savings */}
+            <div className="stat-metric-card">
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                  <div
+                    style={{
+                      width: '38px',
+                      height: '38px',
+                      borderRadius: '50%',
+                      background: 'rgba(37, 99, 235, 0.14)',
+                      color: '#2563eb',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      boxShadow: '0 2px 8px rgba(37, 99, 235, 0.15)'
+                    }}
+                  >
+                    <Wallet size={19} strokeWidth={2.3} />
+                  </div>
+                  <div>
+                    <span style={{ fontSize: '0.82rem', fontWeight: 600, color: 'var(--text-muted)' }}>
+                      <span className="desktop-stat-label">Net Savings</span>
+                      <span className="mobile-stat-label">Savings</span>
+                    </span>
+                  </div>
+                </div>
+                {displaySavings > 0 ? (
+                  <span
+                    style={{
+                      fontSize: '0.72rem',
+                      fontWeight: 700,
+                      color: '#2563eb',
+                      background: 'rgba(37, 99, 235, 0.1)',
+                      padding: '3px 8px',
+                      borderRadius: 'var(--radius-full)'
+                    }}
+                  >
+                    ↗ Saved
+                  </span>
+                ) : (
+                  <span
+                    style={{
+                      fontSize: '0.72rem',
+                      fontWeight: 600,
+                      color: 'var(--text-dim)',
+                      background: 'var(--bg-surface)',
+                      padding: '3px 8px',
+                      borderRadius: 'var(--radius-full)'
+                    }}
+                  >
+                    ₹0
+                  </span>
+                )}
+              </div>
+
+              <div style={{ marginTop: '14px', display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between' }}>
+                <div>
+                  <div style={{ fontSize: '1.45rem', fontWeight: 800, fontFamily: 'var(--font-display)', color: 'var(--text-primary)', letterSpacing: '-0.02em' }}>
+                    {formatCurrency(displaySavings, 'INR')}
+                  </div>
+                  <div style={{ fontSize: '0.72rem', color: 'var(--text-dim)', marginTop: '2px' }}>
+                    {displaySavings > 0 ? 'vs last month' : 'No savings yet'}
+                  </div>
+                </div>
+
+                {/* Sparkline Indicator */}
+                <div style={{ display: 'flex', alignItems: 'flex-end', gap: '3px', height: '26px' }}>
+                  {displaySavings > 0
+                    ? [30, 45, 50, 65, 70, 85, 95].map((h, i) => (
+                        <div
+                          key={i}
+                          style={{
+                            width: '4px',
+                            height: `${h}%`,
+                            background: i === 6 ? '#2563eb' : 'rgba(37, 99, 235, 0.35)',
+                            borderRadius: '2px'
+                          }}
+                        />
+                      ))
+                    : [15, 15, 15, 15, 15, 15, 15].map((h, i) => (
+                        <div
+                          key={i}
+                          style={{
+                            width: '4px',
+                            height: `${h}%`,
+                            background: 'var(--border-subtle)',
+                            borderRadius: '2px'
+                          }}
+                        />
+                      ))}
+                </div>
+              </div>
+            </div>
+
+            {/* Card 4: Budget Utilization */}
+            <div className="stat-metric-card">
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                  <div
+                    style={{
+                      width: '38px',
+                      height: '38px',
+                      borderRadius: '50%',
+                      background: 'rgba(139, 92, 246, 0.14)',
+                      color: '#8b5cf6',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      boxShadow: '0 2px 8px rgba(139, 92, 246, 0.15)'
+                    }}
+                  >
+                    <Target size={19} strokeWidth={2.4} />
+                  </div>
+                  <div>
+                    <span style={{ fontSize: '0.82rem', fontWeight: 600, color: 'var(--text-muted)' }}>
+                      <span className="desktop-stat-label">Budget Utilization</span>
+                      <span className="mobile-stat-label">Budget</span>
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              <div style={{ marginTop: '14px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                <div>
+                  <div style={{ fontSize: '1.45rem', fontWeight: 800, fontFamily: 'var(--font-display)', color: 'var(--text-primary)', letterSpacing: '-0.02em' }}>
+                    {budgetLimit > 0 ? `${budgetUsedPercent}%` : '0%'}
+                  </div>
+                  <div style={{ fontSize: '0.72rem', color: budgetLimit > 0 ? (budgetUsedPercent <= 100 ? '#10b981' : '#ef4444') : 'var(--text-muted)', fontWeight: 700, marginTop: '2px' }}>
+                    {budgetLimit > 0 ? (budgetUsedPercent <= 100 ? 'On track' : 'Over budget') : 'No budget set'}
+                  </div>
+                  <div style={{ fontSize: '0.68rem', color: 'var(--text-dim)' }}>
+                    {budgetLimit > 0
+                      ? `${formatCurrency(displayExpense, 'INR')} of ${formatCurrency(budgetLimit, 'INR')}`
+                      : `${formatCurrency(0, 'INR')} of ${formatCurrency(0, 'INR')}`}
+                  </div>
+                </div>
+
+                {/* Circular Gauge Ring */}
+                <div style={{ width: '48px', height: '48px', position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  <svg width="48" height="48" viewBox="0 0 48 48">
+                    <circle cx="24" cy="24" r="19" fill="none" stroke="rgba(139, 92, 246, 0.18)" strokeWidth="4.5" />
+                    <circle
+                      cx="24"
+                      cy="24"
+                      r="19"
+                      fill="none"
+                      stroke="#8b5cf6"
+                      strokeWidth="4.5"
+                      strokeDasharray="119.38"
+                      strokeDashoffset={119.38 - (119.38 * budgetUsedPercent) / 100}
+                      strokeLinecap="round"
+                      transform="rotate(-90 24 24)"
+                    />
+                  </svg>
+                  <span style={{ position: 'absolute', fontSize: '0.68rem', fontWeight: 800, color: 'var(--text-primary)' }}>
+                    {budgetLimit > 0 ? `${budgetUsedPercent}%` : '0%'}
+                  </span>
+                </div>
+              </div>
+            </div>
           </div>
-
-          <div style={{ marginTop: '14px', display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between' }}>
-            <div>
-              <div style={{ fontSize: '1.45rem', fontWeight: 800, fontFamily: 'var(--font-display)', color: 'var(--text-primary)', letterSpacing: '-0.02em' }}>
-                {formatCurrency(balances.thisMonthIncome || balances.monthlyIncome || 45000, 'INR')}
-              </div>
-              <div style={{ fontSize: '0.72rem', color: 'var(--text-dim)', marginTop: '2px' }}>
-                vs last month
-              </div>
-            </div>
-
-            {/* Sparkline Indicator */}
-            <div style={{ display: 'flex', alignItems: 'flex-end', gap: '3px', height: '26px' }}>
-              {[35, 45, 60, 50, 75, 90, 100].map((h, i) => (
-                <div
-                  key={i}
-                  style={{
-                    width: '4px',
-                    height: `${h}%`,
-                    background: i === 6 ? '#10b981' : 'rgba(16, 185, 129, 0.35)',
-                    borderRadius: '2px'
-                  }}
-                />
-              ))}
-            </div>
-          </div>
-        </div>
-
-        {/* Card 2: Monthly Outflow */}
-        <div className="stat-metric-card">
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-              <div
-                style={{
-                  width: '38px',
-                  height: '38px',
-                  borderRadius: '50%',
-                  background: 'rgba(239, 68, 68, 0.14)',
-                  color: '#ef4444',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  boxShadow: '0 2px 8px rgba(239, 68, 68, 0.15)'
-                }}
-              >
-                <ArrowUpRight size={19} strokeWidth={2.5} />
-              </div>
-              <div>
-                <span style={{ fontSize: '0.82rem', fontWeight: 600, color: 'var(--text-muted)' }}>
-                  <span className="desktop-stat-label">Monthly Outflow</span>
-                  <span className="mobile-stat-label">Expenses</span>
-                </span>
-              </div>
-            </div>
-            <span
-              style={{
-                fontSize: '0.72rem',
-                fontWeight: 700,
-                color: '#ef4444',
-                background: 'rgba(239, 68, 68, 0.1)',
-                padding: '3px 8px',
-                borderRadius: 'var(--radius-full)'
-              }}
-            >
-              ↗ +8%
-            </span>
-          </div>
-
-          <div style={{ marginTop: '14px', display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between' }}>
-            <div>
-              <div style={{ fontSize: '1.45rem', fontWeight: 800, fontFamily: 'var(--font-display)', color: 'var(--text-primary)', letterSpacing: '-0.02em' }}>
-                {formatCurrency(balances.thisMonthExpense || 28500, 'INR')}
-              </div>
-              <div style={{ fontSize: '0.72rem', color: 'var(--text-dim)', marginTop: '2px' }}>
-                vs last month
-              </div>
-            </div>
-
-            {/* Sparkline Indicator */}
-            <div style={{ display: 'flex', alignItems: 'flex-end', gap: '3px', height: '26px' }}>
-              {[40, 55, 35, 70, 65, 80, 75].map((h, i) => (
-                <div
-                  key={i}
-                  style={{
-                    width: '4px',
-                    height: `${h}%`,
-                    background: i === 6 ? '#ef4444' : 'rgba(239, 68, 68, 0.35)',
-                    borderRadius: '2px'
-                  }}
-                />
-              ))}
-            </div>
-          </div>
-        </div>
-
-        {/* Card 3: Net Savings */}
-        <div className="stat-metric-card">
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-              <div
-                style={{
-                  width: '38px',
-                  height: '38px',
-                  borderRadius: '50%',
-                  background: 'rgba(37, 99, 235, 0.14)',
-                  color: '#2563eb',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  boxShadow: '0 2px 8px rgba(37, 99, 235, 0.15)'
-                }}
-              >
-                <Wallet size={19} strokeWidth={2.3} />
-              </div>
-              <div>
-                <span style={{ fontSize: '0.82rem', fontWeight: 600, color: 'var(--text-muted)' }}>
-                  <span className="desktop-stat-label">Net Savings</span>
-                  <span className="mobile-stat-label">Savings</span>
-                </span>
-              </div>
-            </div>
-            <span
-              style={{
-                fontSize: '0.72rem',
-                fontWeight: 700,
-                color: '#2563eb',
-                background: 'rgba(37, 99, 235, 0.1)',
-                padding: '3px 8px',
-                borderRadius: 'var(--radius-full)'
-              }}
-            >
-              ↗ +20%
-            </span>
-          </div>
-
-          <div style={{ marginTop: '14px', display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between' }}>
-            <div>
-              <div style={{ fontSize: '1.45rem', fontWeight: 800, fontFamily: 'var(--font-display)', color: 'var(--text-primary)', letterSpacing: '-0.02em' }}>
-                {formatCurrency(Math.max(0, (balances.thisMonthIncome || balances.monthlyIncome || 45000) - (balances.thisMonthExpense || 28500)), 'INR')}
-              </div>
-              <div style={{ fontSize: '0.72rem', color: 'var(--text-dim)', marginTop: '2px' }}>
-                vs last month
-              </div>
-            </div>
-
-            {/* Sparkline Indicator */}
-            <div style={{ display: 'flex', alignItems: 'flex-end', gap: '3px', height: '26px' }}>
-              {[30, 45, 50, 65, 70, 85, 95].map((h, i) => (
-                <div
-                  key={i}
-                  style={{
-                    width: '4px',
-                    height: `${h}%`,
-                    background: i === 6 ? '#2563eb' : 'rgba(37, 99, 235, 0.35)',
-                    borderRadius: '2px'
-                  }}
-                />
-              ))}
-            </div>
-          </div>
-        </div>
-
-        {/* Card 4: Budget Utilization */}
-        <div className="stat-metric-card">
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-              <div
-                style={{
-                  width: '38px',
-                  height: '38px',
-                  borderRadius: '50%',
-                  background: 'rgba(139, 92, 246, 0.14)',
-                  color: '#8b5cf6',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  boxShadow: '0 2px 8px rgba(139, 92, 246, 0.15)'
-                }}
-              >
-                <Target size={19} strokeWidth={2.4} />
-              </div>
-              <div>
-                <span style={{ fontSize: '0.82rem', fontWeight: 600, color: 'var(--text-muted)' }}>
-                  <span className="desktop-stat-label">Budget Utilization</span>
-                  <span className="mobile-stat-label">Budget</span>
-                </span>
-              </div>
-            </div>
-          </div>
-
-          <div style={{ marginTop: '14px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-            <div>
-              <div style={{ fontSize: '1.45rem', fontWeight: 800, fontFamily: 'var(--font-display)', color: 'var(--text-primary)', letterSpacing: '-0.02em' }}>
-                {balances.monthlyBudget > 0 ? Math.min(100, Math.round(((balances.thisMonthExpense || 18500) / balances.monthlyBudget) * 100)) : 64}%
-              </div>
-              <div style={{ fontSize: '0.72rem', color: '#10b981', fontWeight: 700, marginTop: '2px' }}>
-                On track
-              </div>
-              <div style={{ fontSize: '0.68rem', color: 'var(--text-dim)' }}>
-                {formatCurrency(balances.thisMonthExpense || 18500, 'INR')} of {formatCurrency(balances.monthlyBudget || 29000, 'INR')}
-              </div>
-            </div>
-
-            {/* Circular Gauge Ring */}
-            <div style={{ width: '48px', height: '48px', position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-              <svg width="48" height="48" viewBox="0 0 48 48">
-                <circle cx="24" cy="24" r="19" fill="none" stroke="rgba(139, 92, 246, 0.18)" strokeWidth="4.5" />
-                <circle
-                  cx="24"
-                  cy="24"
-                  r="19"
-                  fill="none"
-                  stroke="#8b5cf6"
-                  strokeWidth="4.5"
-                  strokeDasharray="119.38"
-                  strokeDashoffset={119.38 - (119.38 * (balances.monthlyBudget > 0 ? Math.min(100, Math.round(((balances.thisMonthExpense || 18500) / balances.monthlyBudget) * 100)) : 64)) / 100}
-                  strokeLinecap="round"
-                  transform="rotate(-90 24 24)"
-                />
-              </svg>
-              <span style={{ position: 'absolute', fontSize: '0.68rem', fontWeight: 800, color: 'var(--text-primary)' }}>
-                {balances.monthlyBudget > 0 ? Math.min(100, Math.round(((balances.thisMonthExpense || 18500) / balances.monthlyBudget) * 100)) : 64}%
-              </span>
-            </div>
-          </div>
-        </div>
-      </div>
+        );
+      })()}
 
       {/* ==========================================================================
           CASH FLOW OVERVIEW (12-Month Dual Bar Chart) & TWO SIDE-BY-SIDE CARDS
@@ -744,6 +837,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ onNavigatePage }) 
         chitsList={data?.chitsList}
         recentTransactions={recentTransactions}
         creditCardData={sectionBreakdowns.creditCards}
+        monthlyCashFlow={data?.monthlyCashFlow}
         onNavigateTab={onNavigatePage}
       />
 
@@ -791,7 +885,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ onNavigatePage }) 
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
               <div>
                 <span style={{ fontSize: '0.7rem', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase' }}>
-                  Credit Cards ({sectionBreakdowns.creditCards.count || 1} Linked)
+                  Credit Cards ({sectionBreakdowns.creditCards.count || 0} Linked)
                 </span>
                 <div style={{ display: 'flex', alignItems: 'baseline', gap: '6px', marginTop: '4px' }}>
                   <span style={{ fontFamily: 'var(--font-display)', fontSize: '1.25rem', fontWeight: 800, color: '#f43f5e' }}>
@@ -803,10 +897,10 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ onNavigatePage }) 
                 </div>
               </div>
               <span
-                className={`badge-status ${sectionBreakdowns.creditCards.utilization <= 30 ? 'success' : 'warning'}`}
+                className={`badge-status ${sectionBreakdowns.creditCards.count > 0 ? (sectionBreakdowns.creditCards.utilization <= 30 ? 'success' : 'warning') : 'neutral'}`}
                 style={{ fontSize: '0.68rem', padding: '2px 6px' }}
               >
-                {sectionBreakdowns.creditCards.utilization}% Used
+                {sectionBreakdowns.creditCards.count > 0 ? `${sectionBreakdowns.creditCards.utilization}% Used` : '0 Cards'}
               </span>
             </div>
 

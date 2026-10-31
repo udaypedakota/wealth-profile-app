@@ -842,20 +842,7 @@ class DatabaseManager {
       }
     }
 
-    // 3. Setup user's 2 starter accounts (Cash & Bank) with 0 balance
-    const starterCash = {
-      id: `acc_${Date.now()}_cash`,
-      userId: userId,
-      name: 'Cash in Hand (Wallet)',
-      type: 'cash',
-      institution: 'Physical Wallet',
-      maskedNumber: 'CASH',
-      balance: 0,
-      currency: 'INR',
-      status: 'primary',
-      cardColor: 'linear-gradient(135deg, #059669 0%, #064e3b 100%)'
-    };
-
+    // 3. Setup user's 1 single starter account (Savings Bank) with 0 balance
     const starterBank = {
       id: `acc_${Date.now()}_bank`,
       userId: userId,
@@ -865,15 +852,15 @@ class DatabaseManager {
       maskedNumber: '•••• 1234',
       balance: 0,
       currency: 'INR',
-      status: 'active',
+      status: 'primary',
       cardColor: 'linear-gradient(135deg, #0284c7 0%, #0369a1 100%)'
     };
 
     if (this.isMongoConnected && this.mongoDb) {
       try {
-        await this.mongoDb.collection('accounts').insertMany([starterCash, starterBank]);
+        await this.mongoDb.collection('accounts').insertOne(starterBank);
       } catch (e) {
-        console.warn('Mongo insert starter accounts error:', e);
+        console.warn('Mongo insert starter account error:', e);
       }
     }
 
@@ -884,7 +871,7 @@ class DatabaseManager {
     if (!localDb.profiles) localDb.profiles = {};
     localDb.profiles[userId] = userProfile;
     if (!Array.isArray(localDb.accounts)) localDb.accounts = [];
-    localDb.accounts.push(starterCash, starterBank);
+    localDb.accounts.push(starterBank);
     this.writeLocalDb(localDb);
 
     // Embed userId into auth token for instant identification

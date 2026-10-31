@@ -496,6 +496,18 @@ app.get('/api/dashboard', async (req, res) => {
         moneyLentPending: lending.filter((l) => l.type === 'lent' && l.status === 'Pending').length
       },
       recentTransactions: transactions.slice(0, 8),
+      monthlyCashFlow: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'].map((name, index) => {
+        const monthPrefix = `${new Date().getFullYear()}-${String(index + 1).padStart(2, '0')}`;
+        let inflow = 0;
+        let outflow = 0;
+        transactions.forEach((tx) => {
+          if ((tx.date || '').startsWith(monthPrefix)) {
+            if (tx.type === 'credit') inflow += Number(tx.amount || 0);
+            if (tx.type === 'debit') outflow += Number(tx.amount || 0);
+          }
+        });
+        return { month: name, inflow, outflow };
+      }),
       upcomingBills: bills.filter((b) => b.status !== 'Settled').slice(0, 4)
     });
   } catch (err) {

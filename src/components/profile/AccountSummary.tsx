@@ -190,83 +190,97 @@ export const AccountSummary: React.FC<AccountSummaryProps> = ({
         </div>
       </div>
 
-      <div className="card-grid-3col">
-        {accounts.map((acc) => (
-          <div
-            key={acc.id}
-            className="account-card-item"
-            style={{ background: acc.cardColor || 'var(--bg-surface)' }}
-          >
-            <div className="account-card-top">
+      {accounts.length === 0 ? (
+        <div style={{ padding: '36px 16px', textAlign: 'center', background: 'var(--bg-surface)', borderRadius: '12px', border: '1px dashed var(--border-subtle)', marginTop: '16px' }}>
+          <Building2 size={36} style={{ color: 'var(--text-dim)', marginBottom: '8px' }} />
+          <h4 style={{ margin: '0 0 4px', fontSize: '0.95rem', color: 'var(--text-primary)' }}>No Accounts Connected</h4>
+          <p style={{ margin: '0 0 16px', fontSize: '0.8rem', color: 'var(--text-muted)' }}>
+            Link your bank account, physical wallet, or credit card to manage balances.
+          </p>
+          <button type="button" className="btn btn-primary btn-sm" onClick={openAddModal}>
+            <Plus size={15} />
+            <span>Add First Account</span>
+          </button>
+        </div>
+      ) : (
+        <div className="card-grid-3col">
+          {accounts.map((acc) => (
+            <div
+              key={acc.id}
+              className="account-card-item"
+              style={{ background: acc.cardColor || 'var(--bg-surface)' }}
+            >
+              <div className="account-card-top">
+                <div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <span style={{ color: 'var(--primary)' }}>{getAccountIcon(acc.type)}</span>
+                    <span style={{ fontSize: '0.92rem', fontWeight: 700, color: '#fff' }}>{acc.name}</span>
+                  </div>
+                  <div style={{ fontSize: '0.75rem', color: '#94a3b8', marginTop: '2px' }}>
+                    {acc.institution}
+                  </div>
+                </div>
+
+                <span className="account-type-badge">{acc.type.replace('_', ' ')}</span>
+              </div>
+
+              <div className="account-card-number" style={{ color: '#cbd5e1' }}>
+                {acc.maskedNumber}
+                {acc.expiryDate && (
+                  <span style={{ fontSize: '0.75rem', marginLeft: '12px', color: '#94a3b8' }}>
+                    EXP: {acc.expiryDate}
+                  </span>
+                )}
+              </div>
+
               <div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                  <span style={{ color: 'var(--primary)' }}>{getAccountIcon(acc.type)}</span>
-                  <span style={{ fontSize: '0.92rem', fontWeight: 700, color: '#fff' }}>{acc.name}</span>
+                <div style={{ fontSize: '0.7rem', color: '#94a3b8', textTransform: 'uppercase' }}>
+                  {acc.type === 'credit_card' ? 'Current Outstanding Due' : 'Available Liquid Balance'}
                 </div>
-                <div style={{ fontSize: '0.75rem', color: '#94a3b8', marginTop: '2px' }}>
-                  {acc.institution}
+                <div
+                  className="account-card-balance"
+                  style={{
+                    color: acc.balance < 0 ? '#fb7185' : '#fff'
+                  }}
+                >
+                  {hideBalances ? '••••••••' : formatCurrency(acc.balance, currency)}
                 </div>
               </div>
 
-              <span className="account-type-badge">{acc.type.replace('_', ' ')}</span>
-            </div>
+              <div className="account-card-actions">
+                <button
+                  type="button"
+                  className="btn btn-secondary btn-sm"
+                  style={{
+                    flex: 1,
+                    background: 'rgba(255, 255, 255, 0.12)',
+                    color: '#fff',
+                    border: '1px solid rgba(255, 255, 255, 0.2)'
+                  }}
+                  onClick={() => openEditModal(acc)}
+                >
+                  <Edit2 size={13} />
+                  <span>Edit</span>
+                </button>
 
-            <div className="account-card-number" style={{ color: '#cbd5e1' }}>
-              {acc.maskedNumber}
-              {acc.expiryDate && (
-                <span style={{ fontSize: '0.75rem', marginLeft: '12px', color: '#94a3b8' }}>
-                  EXP: {acc.expiryDate}
-                </span>
-              )}
-            </div>
-
-            <div>
-              <div style={{ fontSize: '0.7rem', color: '#94a3b8', textTransform: 'uppercase' }}>
-                {acc.type === 'credit_card' ? 'Current Outstanding Due' : 'Available Liquid Balance'}
+                <button
+                  type="button"
+                  className="btn btn-outline btn-sm"
+                  style={{
+                    background: 'rgba(239, 68, 68, 0.15)',
+                    color: '#fca5a5',
+                    border: '1px solid rgba(239, 68, 68, 0.3)'
+                  }}
+                  onClick={() => handleDelete(acc.id, acc.name)}
+                  title="Unlink Account"
+                >
+                  <Trash2 size={13} />
+                </button>
               </div>
-              <div
-                className="account-card-balance"
-                style={{
-                  color: acc.balance < 0 ? '#fb7185' : '#fff'
-                }}
-              >
-                {hideBalances ? '••••••••' : formatCurrency(acc.balance, currency)}
-              </div>
             </div>
-
-            <div className="account-card-actions">
-              <button
-                type="button"
-                className="btn btn-secondary btn-sm"
-                style={{
-                  flex: 1,
-                  background: 'rgba(255, 255, 255, 0.12)',
-                  color: '#fff',
-                  border: '1px solid rgba(255, 255, 255, 0.2)'
-                }}
-                onClick={() => openEditModal(acc)}
-              >
-                <Edit2 size={13} />
-                <span>Edit</span>
-              </button>
-
-              <button
-                type="button"
-                className="btn btn-outline btn-sm"
-                style={{
-                  background: 'rgba(239, 68, 68, 0.15)',
-                  color: '#fca5a5',
-                  border: '1px solid rgba(239, 68, 68, 0.3)'
-                }}
-                onClick={() => handleDelete(acc.id, acc.name)}
-                title="Unlink Account"
-              >
-                <Trash2 size={13} />
-              </button>
-            </div>
-          </div>
-        ))}
-      </div>
+          ))}
+        </div>
+      )}
 
       {/* Add/Edit Account Modal */}
       <Modal

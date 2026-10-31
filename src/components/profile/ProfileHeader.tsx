@@ -17,9 +17,15 @@ import {
 
 interface ProfileHeaderProps {
   onEditClick: () => void;
+  onNavigateTab?: (tabId: string) => void;
+  onOpenAccounts?: () => void;
 }
 
-export const ProfileHeader: React.FC<ProfileHeaderProps> = ({ onEditClick }) => {
+export const ProfileHeader: React.FC<ProfileHeaderProps> = ({
+  onEditClick,
+  onNavigateTab,
+  onOpenAccounts
+}) => {
   const { profile, uploadAvatar, removeAvatar, completionPercentage } = useProfile();
   const [isAvatarModalOpen, setIsAvatarModalOpen] = useState(false);
 
@@ -127,7 +133,12 @@ export const ProfileHeader: React.FC<ProfileHeaderProps> = ({ onEditClick }) => 
         </div>
 
         {/* Quick Statistics Bar */}
-        <ProfileStats stats={stats} currency={financial.currency} />
+        <ProfileStats
+          stats={stats}
+          currency={financial.currency}
+          onNavigateTab={onNavigateTab}
+          onOpenAccounts={onOpenAccounts}
+        />
       </div>
 
       {/* Avatar Upload Modal */}

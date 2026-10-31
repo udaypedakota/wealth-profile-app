@@ -223,7 +223,7 @@ const AppContent: React.FC = () => {
         {/* Clean, Focused Content View for the selected module */}
         <main className="page-content-wrapper">
           {currentPage === 'dashboard' && <DashboardView onNavigatePage={setCurrentPage} />}
-          {currentPage === 'profile' && <ProfileView />}
+          {currentPage === 'profile' && <ProfileView onNavigateTab={(tab) => setCurrentPage(tab as any)} />}
           {currentPage === 'settings' && <SettingsView />}
           {currentPage === 'transactions' && <TransactionsView />}
           {currentPage === 'income' && <IncomeView />}
