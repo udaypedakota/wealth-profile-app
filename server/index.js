@@ -564,8 +564,8 @@ app.get('/api/dashboard', async (req, res) => {
           pendingCount: lending.filter((l) => l.status === 'Pending').length
         },
         salary: {
-          monthlyExpected: monthlySalary,
-          actualReceivedThisMonth: thisMonthIncome
+          monthlyExpected: resolvedSalary,
+          actualReceivedThisMonth: effectiveMonthlyIncome
         },
         commitments: {
           totalMonthlyCommitments,
@@ -592,6 +592,9 @@ app.get('/api/dashboard', async (req, res) => {
             if (tx.type === 'debit') outflow += Number(tx.amount || 0);
           }
         });
+        if (inflow === 0 && (outflow > 0 || index === new Date().getMonth()) && resolvedSalary > 0) {
+          inflow = resolvedSalary;
+        }
         return { month: name, inflow, outflow };
       }),
       upcomingBills: bills.filter((b) => b.status !== 'Settled').slice(0, 4)

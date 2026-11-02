@@ -900,6 +900,8 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ onNavigatePage }) 
         recentTransactions={recentTransactions}
         creditCardData={sectionBreakdowns.creditCards}
         monthlyCashFlow={data?.monthlyCashFlow}
+        selectedMonth={selectedMonth}
+        onSelectMonth={handleSelectMonth}
         onNavigateTab={onNavigatePage}
       />
 

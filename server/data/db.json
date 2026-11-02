@@ -150,6 +150,17 @@
   ],
   "transactions": [
     {
+      "id": "tx_uday_nov_salary",
+      "userId": "user_uday_01",
+      "date": "2026-11-01",
+      "title": "Monthly Salary Credit",
+      "category": "Salary",
+      "amount": 60000,
+      "type": "credit",
+      "account": "Primary Savings Bank Account",
+      "notes": "Monthly salary credit for November 2026"
+    },
+    {
       "id": "item_1793511322156_i5nmo",
       "userId": "user_uday_01",
       "title": "Bike service",

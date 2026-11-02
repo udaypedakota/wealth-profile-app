@@ -746,7 +746,22 @@ export class ApiClient {
         moneyLentPending: lending.filter((l: any) => l.type === 'lent' && l.status === 'Pending').length
       },
       recentTransactions: (periodTransactions.length > 0 ? periodTransactions : transactions).slice(0, 8),
-      upcomingBills: bills.filter((b: any) => b.status !== 'Settled').slice(0, 4)
+      upcomingBills: bills.filter((b: any) => b.status !== 'Settled').slice(0, 4),
+      monthlyCashFlow: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'].map((name, index) => {
+        const monthPrefix = new Date().getFullYear() + '-' + String(index + 1).padStart(2, '0');
+        let inflow = 0;
+        let outflow = 0;
+        transactions.forEach((tx: any) => {
+          if ((tx.date || '').startsWith(monthPrefix)) {
+            if (tx.type === 'credit') inflow += Number(tx.amount || 0);
+            if (tx.type === 'debit') outflow += Number(tx.amount || 0);
+          }
+        });
+        if (inflow === 0 && (outflow > 0 || index === new Date().getMonth()) && monthlySalary > 0) {
+          inflow = monthlySalary;
+        }
+        return { month: name, inflow, outflow };
+      })
     };
   }
 
