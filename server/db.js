@@ -187,20 +187,59 @@ export const INITIAL_DATABASE = {
   ],
   bills: [
     {
-      id: 'bill_1',
-      title: 'Electricity Bill',
-      amount: 1450,
-      dueDate: new Date(Date.now() + 5 * 86400000).toISOString().split('T')[0],
+      id: 'bill_uday_hostel',
+      userId: 'user_uday_01',
+      title: 'Hostel Fees',
+      amount: 6500,
+      dueDate: new Date(Date.now() + 3 * 86400000).toISOString().split('T')[0],
       status: 'Pending',
-      category: 'Utilities'
+      category: 'Rent & Hostel',
+      isRecurring: true,
+      recurrence: 'monthly'
     },
     {
-      id: 'bill_2',
-      title: 'Mobile Recharge / WiFi Broadband',
-      amount: 799,
-      dueDate: new Date(Date.now() + 9 * 86400000).toISOString().split('T')[0],
+      id: 'bill_uday_petrol',
+      userId: 'user_uday_01',
+      title: 'Bike Petrol',
+      amount: 1000,
+      dueDate: new Date(Date.now() + 8 * 86400000).toISOString().split('T')[0],
       status: 'Pending',
-      category: 'Internet'
+      category: 'Transportation & Fuel',
+      isRecurring: true,
+      recurrence: 'monthly'
+    },
+    {
+      id: 'bill_uday_home',
+      userId: 'user_uday_01',
+      title: 'Home (Gas, Current Bill, Amma Medicines)',
+      amount: 5000,
+      dueDate: new Date(Date.now() + 8 * 86400000).toISOString().split('T')[0],
+      status: 'Pending',
+      category: 'Home & Family',
+      isRecurring: true,
+      recurrence: 'monthly'
+    },
+    {
+      id: 'bill_uday_recharges',
+      userId: 'user_uday_01',
+      title: 'Mobile Recharges',
+      amount: 1000,
+      dueDate: new Date(Date.now() + 13 * 86400000).toISOString().split('T')[0],
+      status: 'Pending',
+      category: 'Utilities',
+      isRecurring: true,
+      recurrence: 'monthly'
+    },
+    {
+      id: 'bill_uday_dwakra',
+      userId: 'user_uday_01',
+      title: 'Dwakra Monthly',
+      amount: 3100,
+      dueDate: new Date(Date.now() + 18 * 86400000).toISOString().split('T')[0],
+      status: 'Pending',
+      category: 'Dwakra & Savings',
+      isRecurring: true,
+      recurrence: 'monthly'
     }
   ],
   emis: [],

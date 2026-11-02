@@ -1,17 +1,33 @@
 {
   "profile": {
     "personal": {
+      "fullName": "Uday Pedakota",
+      "firstName": "Uday",
+      "lastName": "Pedakota",
+      "username": "uday_pedakota",
+      "age": 28,
+      "dateOfBirth": "1998-03-31",
+      "gender": "Male",
       "bio": "Personal Wealth & Daily Money Ledger. Real-time daily tracking for expenses, income, bills, and investments."
     },
     "contact": {
+      "email": "peddakotaudaykumar@gmail.com",
+      "mobile": "9908660573",
       "city": "Visakhapatnam",
       "state": "Andhra Pradesh",
-      "country": "India"
+      "country": "India",
+      "zipCode": "530001"
     },
     "financial": {
+      "currency": "INR",
+      "currencySymbol": "₹",
       "monthlyIncome": 60000,
-      "monthlyBudget": 35000
-    }
+      "monthlyBudget": 35000,
+      "savingsTarget": 25000,
+      "financialGoal": "Long-Term Wealth Building & Systematic Savings"
+    },
+    "id": "uday_pedakota_01",
+    "userId": "user_uday_01"
   },
   "accounts": [
     {
@@ -240,7 +256,73 @@
       "createdAt": "2026-10-04T09:00:00.000Z"
     }
   ],
-  "bills": [],
+  "bills": [
+    {
+      "id": "bill_uday_hostel",
+      "userId": "user_uday_01",
+      "title": "Hostel Fees",
+      "amount": 6500,
+      "category": "Rent & Hostel",
+      "dueDate": "2026-11-05",
+      "status": "Pending",
+      "isRecurring": true,
+      "recurrence": "monthly",
+      "notes": "Monthly hostel rent & accommodation",
+      "createdAt": "2026-11-02T05:57:25.384Z"
+    },
+    {
+      "id": "bill_uday_petrol",
+      "userId": "user_uday_01",
+      "title": "Bike Petrol",
+      "amount": 1000,
+      "category": "Transportation & Fuel",
+      "dueDate": "2026-11-10",
+      "status": "Pending",
+      "isRecurring": true,
+      "recurrence": "monthly",
+      "notes": "Monthly bike fuel refill",
+      "createdAt": "2026-11-02T05:57:25.386Z"
+    },
+    {
+      "id": "bill_uday_home",
+      "userId": "user_uday_01",
+      "title": "Home (Gas, Current Bill, Amma Medicines)",
+      "amount": 5000,
+      "category": "Home & Family",
+      "dueDate": "2026-11-10",
+      "status": "Pending",
+      "isRecurring": true,
+      "recurrence": "monthly",
+      "notes": "Gas cylinder, home electricity, and Amma medicines",
+      "createdAt": "2026-11-02T05:57:25.386Z"
+    },
+    {
+      "id": "bill_uday_recharges",
+      "userId": "user_uday_01",
+      "title": "Mobile Recharges",
+      "amount": 1000,
+      "category": "Utilities",
+      "dueDate": "2026-11-15",
+      "status": "Pending",
+      "isRecurring": true,
+      "recurrence": "monthly",
+      "notes": "Monthly mobile phone recharges",
+      "createdAt": "2026-11-02T05:57:25.386Z"
+    },
+    {
+      "id": "bill_uday_dwakra",
+      "userId": "user_uday_01",
+      "title": "Dwakra Monthly",
+      "amount": 3100,
+      "category": "Dwakra & Savings",
+      "dueDate": "2026-11-20",
+      "status": "Pending",
+      "isRecurring": true,
+      "recurrence": "monthly",
+      "notes": "Dwakra self help group monthly payment",
+      "createdAt": "2026-11-02T05:57:25.386Z"
+    }
+  ],
   "emis": [],
   "chits": [
     {

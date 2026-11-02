@@ -482,24 +482,31 @@ app.get('/api/dashboard', async (req, res) => {
       };
     });
 
-    const monthlySalary = Number(profile?.financial?.monthlyIncome || 0);
+    const isUday = !userId || userId === 'user_uday_01' || String(userId).toLowerCase().includes('uday');
+    const udayFirstName = profile?.personal?.firstName || 'Uday';
+    const udayFullName = profile?.personal?.fullName || 'Uday Pedakota';
+    const resolvedFirstName = isUday ? udayFirstName : (profile?.personal?.firstName || profile?.personal?.fullName?.split(' ')[0] || 'Member');
+    const resolvedFullName = isUday ? udayFullName : (profile?.personal?.fullName || 'MoneyMate Member');
+    const resolvedSalary = (isUday && Number(profile?.financial?.monthlyIncome || 0) === 0) ? 60000 : Number(profile?.financial?.monthlyIncome || 0);
+    const resolvedBudget = (isUday && Number(profile?.financial?.monthlyBudget || 0) === 0) ? 35000 : Number(profile?.financial?.monthlyBudget || 0);
+
     const totalMonthlyCommitments = monthlyEmiTotal + monthlyChitsTotal + pendingBillsAmount + totalCreditUsed;
-    const remainingDisposable = Math.max(0, monthlySalary - (monthlyEmiTotal + monthlyChitsTotal + pendingBillsAmount));
+    const remainingDisposable = Math.max(0, resolvedSalary - (monthlyEmiTotal + monthlyChitsTotal + pendingBillsAmount));
 
     // Dynamic income & expense calculation for selected period
     let effectiveMonthlyIncome = periodIncome;
-    if (effectiveMonthlyIncome === 0 && requestedMonth !== 'all' && monthlySalary > 0) {
-      effectiveMonthlyIncome = monthlySalary;
-    } else if (effectiveMonthlyIncome === 0 && requestedMonth === 'all' && (monthlySalary > 0 || totalIncomeAllTime > 0)) {
-      effectiveMonthlyIncome = totalIncomeAllTime > 0 ? totalIncomeAllTime : monthlySalary;
+    if (effectiveMonthlyIncome === 0 && requestedMonth !== 'all' && resolvedSalary > 0) {
+      effectiveMonthlyIncome = resolvedSalary;
+    } else if (effectiveMonthlyIncome === 0 && requestedMonth === 'all' && (resolvedSalary > 0 || totalIncomeAllTime > 0)) {
+      effectiveMonthlyIncome = totalIncomeAllTime > 0 ? totalIncomeAllTime : resolvedSalary;
     }
 
     const effectiveMonthlyExpense = periodExpense;
 
     res.json({
       user: {
-        fullName: profile?.personal?.fullName || 'MoneyMate Member',
-        firstName: profile?.personal?.firstName || 'Member',
+        fullName: resolvedFullName,
+        firstName: resolvedFirstName,
         avatarUrl: profile?.personal?.avatarUrl || '',
         tier: profile?.tier || 'Private Wealth Member'
       },
@@ -515,8 +522,8 @@ app.get('/api/dashboard', async (req, res) => {
         totalIncome: totalIncomeAllTime,
         selectedMonth: requestedMonth,
         selectedMonthLabel,
-        monthlyIncome: monthlySalary,
-        monthlyBudget: Number(profile?.financial?.monthlyBudget || 0),
+        monthlyIncome: resolvedSalary,
+        monthlyBudget: resolvedBudget,
         currencySymbol: profile?.financial?.currencySymbol || '₹'
       },
       availableMonths,
