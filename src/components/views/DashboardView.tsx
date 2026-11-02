@@ -222,14 +222,21 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ onNavigatePage }) 
   const [cashBalanceInput, setCashBalanceInput] = useState('');
   const [bankBalanceInput, setBankBalanceInput] = useState('');
   const [isSavingBalances, setIsSavingBalances] = useState(false);
+  const [selectedMonth, setSelectedMonth] = useState<string>(() => {
+    return new Date().toISOString().substring(0, 7);
+  });
 
   const { success, error } = useToast();
 
-  const loadDashboard = async () => {
+  const loadDashboard = async (monthOverride?: string) => {
     try {
       setLoading(true);
-      const res = await ApiClient.getDashboard();
+      const targetMonth = monthOverride !== undefined ? monthOverride : selectedMonth;
+      const res = await ApiClient.getDashboard(targetMonth);
       setData(res);
+      if (res?.balances?.selectedMonth) {
+        setSelectedMonth(res.balances.selectedMonth);
+      }
     } catch (err: any) {
       console.warn('Dashboard fetch error:', err.message);
     } finally {
@@ -237,13 +244,19 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ onNavigatePage }) 
     }
   };
 
+  const handleSelectMonth = (monthVal: string) => {
+    setSelectedMonth(monthVal);
+    loadDashboard(monthVal);
+  };
+
   useEffect(() => {
     loadDashboard();
-    window.addEventListener('moneymate_data_changed', loadDashboard);
-    window.addEventListener('moneymate_auth_changed', loadDashboard);
+    const handleRefresh = () => loadDashboard();
+    window.addEventListener('moneymate_data_changed', handleRefresh);
+    window.addEventListener('moneymate_auth_changed', handleRefresh);
     return () => {
-      window.removeEventListener('moneymate_data_changed', loadDashboard);
-      window.removeEventListener('moneymate_auth_changed', loadDashboard);
+      window.removeEventListener('moneymate_data_changed', handleRefresh);
+      window.removeEventListener('moneymate_auth_changed', handleRefresh);
     };
   }, []);
 
@@ -349,6 +362,12 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ onNavigatePage }) 
   const accounts = data?.accounts || [];
   const recentTransactions = data?.recentTransactions || [];
   const upcomingBills = data?.upcomingBills || [];
+  const availableMonths: Array<{ value: string; label: string; fullName?: string; isCurrent?: boolean }> =
+    data?.availableMonths || [
+      { value: new Date().toISOString().substring(0, 7), label: 'Current Month', isCurrent: true },
+      { value: 'all', label: 'All Time', isCurrent: false }
+    ];
+  const selectedMonthLabel = data?.selectedMonthLabel || (selectedMonth === 'all' ? 'All Time' : selectedMonth);
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
@@ -534,7 +553,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ onNavigatePage }) 
                     {formatCurrency(displayIncome, 'INR')}
                   </div>
                   <div style={{ fontSize: '0.72rem', color: 'var(--text-dim)', marginTop: '2px' }}>
-                    {displayIncome > 0 ? 'vs last month' : 'No income recorded'}
+                    {displayIncome > 0 ? (selectedMonth === 'all' ? 'All-time total inflow' : `${selectedMonthLabel} inflow`) : 'No income recorded'}
                   </div>
                 </div>
 
@@ -627,7 +646,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ onNavigatePage }) 
                     {formatCurrency(displayExpense, 'INR')}
                   </div>
                   <div style={{ fontSize: '0.72rem', color: 'var(--text-dim)', marginTop: '2px' }}>
-                    {displayExpense > 0 ? 'vs last month' : 'No expenses recorded'}
+                    {displayExpense > 0 ? (selectedMonth === 'all' ? 'All-time total outflow' : `${selectedMonthLabel} outflow`) : 'No expenses recorded'}
                   </div>
                 </div>
 
@@ -720,7 +739,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ onNavigatePage }) 
                     {formatCurrency(displaySavings, 'INR')}
                   </div>
                   <div style={{ fontSize: '0.72rem', color: 'var(--text-dim)', marginTop: '2px' }}>
-                    {displaySavings > 0 ? 'vs last month' : 'No savings yet'}
+                    {displaySavings > 0 ? (selectedMonth === 'all' ? 'All-time net savings' : `${selectedMonthLabel} net saved`) : 'No savings yet'}
                   </div>
                 </div>
 

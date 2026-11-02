@@ -3616,3 +3616,130 @@ input, textarea, select {
 
 
 
+
+/* ==========================================================================
+   STATEMENT PERIOD / MONTH FILTER SELECTOR
+   1-tap dynamic month switcher for Dashboard and Financial Modules
+   ========================================================================== */
+.dashboard-month-selector-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  background: var(--bg-card);
+  padding: 8px 14px;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border-card);
+  box-shadow: 0 2px 10px rgba(15, 23, 42, 0.03);
+  margin-bottom: 2px;
+}
+
+.month-selector-label-group {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--text-muted);
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.month-calendar-icon {
+  color: #095ce5;
+}
+
+.month-pills-scroll-container {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  overflow-x: auto;
+  padding: 2px 2px;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+  max-width: 100%;
+}
+
+.month-pills-scroll-container::-webkit-scrollbar {
+  display: none;
+}
+
+.month-pill-tab {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 14px;
+  border-radius: var(--radius-full);
+  font-size: 0.8rem;
+  font-weight: 700;
+  white-space: nowrap;
+  border: 1px solid var(--border-subtle);
+  background: var(--bg-surface);
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  user-select: none;
+}
+
+.month-pill-tab:hover:not(.active) {
+  background: var(--bg-card);
+  color: var(--text-primary);
+  border-color: rgba(9, 92, 229, 0.3);
+  transform: translateY(-1px);
+}
+
+.month-pill-tab.active {
+  background: linear-gradient(135deg, #095ce5 0%, #0045b5 100%);
+  color: #ffffff;
+  border-color: transparent;
+  box-shadow: 0 3px 12px rgba(9, 92, 229, 0.32);
+}
+
+.month-pill-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #10b981;
+  box-shadow: 0 0 6px rgba(16, 185, 129, 0.7);
+}
+
+.month-pill-tab.active .month-pill-dot {
+  background: #ffffff;
+  box-shadow: 0 0 6px rgba(255, 255, 255, 0.9);
+}
+
+.month-pill-current-tag {
+  font-size: 0.65rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  padding: 1px 6px;
+  border-radius: 9999px;
+  background: rgba(16, 185, 129, 0.16);
+  color: #10b981;
+}
+
+.month-pill-tab.active .month-pill-current-tag {
+  background: rgba(255, 255, 255, 0.22);
+  color: #ffffff;
+}
+
+@media (max-width: 768px) {
+  .dashboard-month-selector-bar {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 8px;
+    padding: 10px 12px;
+  }
+  .month-pills-scroll-container {
+    width: 100%;
+    padding-bottom: 2px;
+  }
+  .month-pill-tab {
+    padding: 6px 12px;
+    font-size: 0.78rem;
+  }
+}

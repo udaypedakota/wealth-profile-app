@@ -460,18 +460,21 @@ export class ApiClient {
     return getLocal<any>('dashboard_cache', null);
   }
 
-  // Dashboard Aggregates (100% Dynamic from Database & Synced Cache)
-  static async getDashboard() {
-    const res = await this.request('/dashboard');
+  // Dashboard Aggregates (100% Dynamic from Database & Synced Cache with Period Filter)
+  static async getDashboard(month?: string) {
+    const query = month ? `?month=${encodeURIComponent(month)}` : '';
+    const res = await this.request(`/dashboard${query}`);
     if (res && res.balances && res.sectionBreakdowns) {
-      setLocal('dashboard_cache', res);
+      if (!month || month === 'current') {
+        setLocal('dashboard_cache', res);
+      }
       return res;
     }
 
     const cached = getLocal<any>('dashboard_cache', null);
-    if (cached && cached.balances) return cached;
+    if (!month && cached && cached.balances) return cached;
 
-    // Local dynamic computation fallback
+    // Local dynamic computation fallback with Month Filter Support
     const accounts = getLocal<any[]>('accounts', DEFAULT_INITIAL_STATE.accounts);
     const transactions = getLocal<any[]>('transactions', []);
     const bills = getLocal<any[]>('bills', []);
@@ -482,6 +485,51 @@ export class ApiClient {
 
     const todayStr = new Date().toISOString().split('T')[0];
     const currentMonth = todayStr.substring(0, 7);
+
+    // Collect available months from transactions
+    const monthsSet = new Set<string>();
+    monthsSet.add(currentMonth);
+    transactions.forEach((tx: any) => {
+      if (tx.date && typeof tx.date === 'string' && tx.date.length >= 7) {
+        const ym = tx.date.substring(0, 7);
+        if (/^\d{4}-\d{2}$/.test(ym)) {
+          monthsSet.add(ym);
+        }
+      }
+    });
+
+    const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    const monthFullNames = [
+      'January', 'February', 'March', 'April', 'May', 'June',
+      'July', 'August', 'September', 'October', 'November', 'December'
+    ];
+
+    const sortedMonths = Array.from(monthsSet).sort().reverse();
+    const availableMonths = sortedMonths.map((ym) => {
+      const [y, m] = ym.split('-');
+      const mIdx = parseInt(m, 10) - 1;
+      return {
+        value: ym,
+        label: `${monthNames[mIdx] || m} ${y}`,
+        fullName: `${monthFullNames[mIdx] || m} ${y}`,
+        isCurrent: ym === currentMonth
+      };
+    });
+
+    availableMonths.push({
+      value: 'all',
+      label: 'All Time',
+      fullName: 'All Time Cumulative',
+      isCurrent: false
+    });
+
+    const requestedMonth = month && (month === 'all' || monthsSet.has(month)) ? month : currentMonth;
+    let selectedMonthLabel = 'All Time';
+    if (requestedMonth !== 'all') {
+      const [y, m] = requestedMonth.split('-');
+      const mIdx = parseInt(m, 10) - 1;
+      selectedMonthLabel = `${monthFullNames[mIdx] || m} ${y}`;
+    }
 
     // 1. Accounts & Cards
     let totalCashAndBank = 0;
@@ -502,36 +550,48 @@ export class ApiClient {
     const totalCreditAvailable = Math.max(0, totalCreditLimit - totalCreditUsed);
     const creditUtilization = totalCreditLimit > 0 ? Math.round((totalCreditUsed / totalCreditLimit) * 100) : 0;
 
-    // 2. Transactions
+    // 2. Transactions & Period Filtering
     let todayExpense = 0;
     let yesterdayExpense = 0;
-    let thisMonthExpense = 0;
-    let thisMonthIncome = 0;
+    let totalExpenseAllTime = 0;
+    let totalIncomeAllTime = 0;
+
+    let periodExpense = 0;
+    let periodIncome = 0;
+    const periodCategoryMap: Record<string, number> = {};
+    let periodCategoryTotal = 0;
 
     const yesterdayDate = new Date(Date.now() - 86400000).toISOString().split('T')[0];
-    const categoryMap: Record<string, number> = {};
-    let totalExpenseCategorized = 0;
+
+    const periodTransactions = transactions.filter((tx: any) => {
+      return requestedMonth === 'all' || (tx.date || '').startsWith(requestedMonth);
+    });
 
     transactions.forEach((tx: any) => {
       const amt = Number(tx.amount || 0);
       if (tx.date === todayStr && tx.type === 'debit') todayExpense += amt;
       if (tx.date === yesterdayDate && tx.type === 'debit') yesterdayExpense += amt;
-      if (tx.date && tx.date.startsWith(currentMonth)) {
-        if (tx.type === 'debit') thisMonthExpense += amt;
-        if (tx.type === 'credit') thisMonthIncome += amt;
-      }
+      if (tx.type === 'debit') totalExpenseAllTime += amt;
+      if (tx.type === 'credit') totalIncomeAllTime += amt;
+    });
+
+    periodTransactions.forEach((tx: any) => {
+      const amt = Number(tx.amount || 0);
       if (tx.type === 'debit') {
+        periodExpense += amt;
         const cat = tx.category || 'Other Expense';
-        categoryMap[cat] = (categoryMap[cat] || 0) + amt;
-        totalExpenseCategorized += amt;
+        periodCategoryMap[cat] = (periodCategoryMap[cat] || 0) + amt;
+        periodCategoryTotal += amt;
+      } else if (tx.type === 'credit') {
+        periodIncome += amt;
       }
     });
 
-    const categoryBreakdown = Object.entries(categoryMap)
+    const categoryBreakdown = Object.entries(periodCategoryMap)
       .map(([category, amount]) => ({
         category,
         amount,
-        percentage: totalExpenseCategorized > 0 ? Math.round((amount / totalExpenseCategorized) * 100) : 0
+        percentage: periodCategoryTotal > 0 ? Math.round((amount / periodCategoryTotal) * 100) : 0
       }))
       .sort((a, b) => b.amount - a.amount);
 
@@ -597,8 +657,15 @@ export class ApiClient {
     const monthlySalary = Number(profile.financial?.monthlyIncome || 0);
     const totalMonthlyCommitments = monthlyEmiTotal + monthlyChitsTotal + pendingBillsAmount + totalCreditUsed;
     const remainingDisposable = Math.max(0, monthlySalary - (monthlyEmiTotal + monthlyChitsTotal + pendingBillsAmount));
-    const effectiveMonthlyExpense = totalExpenseCategorized > 0 ? totalExpenseCategorized : thisMonthExpense;
-    const effectiveMonthlyIncome = thisMonthIncome > 0 ? thisMonthIncome : monthlySalary;
+
+    let effectiveMonthlyIncome = periodIncome;
+    if (effectiveMonthlyIncome === 0 && requestedMonth !== 'all' && monthlySalary > 0) {
+      effectiveMonthlyIncome = monthlySalary;
+    } else if (effectiveMonthlyIncome === 0 && requestedMonth === 'all' && (monthlySalary > 0 || totalIncomeAllTime > 0)) {
+      effectiveMonthlyIncome = totalIncomeAllTime > 0 ? totalIncomeAllTime : monthlySalary;
+    }
+
+    const effectiveMonthlyExpense = periodExpense;
 
     return {
       user: {
@@ -615,11 +682,17 @@ export class ApiClient {
         yesterdayExpense,
         thisMonthIncome: effectiveMonthlyIncome,
         thisMonthExpense: effectiveMonthlyExpense,
-        totalExpenses: totalExpenseCategorized,
+        totalExpenses: totalExpenseAllTime,
+        totalIncome: totalIncomeAllTime,
+        selectedMonth: requestedMonth,
+        selectedMonthLabel,
         monthlyIncome: monthlySalary,
         monthlyBudget: Number(profile?.financial?.monthlyBudget || 0),
         currencySymbol: profile?.financial?.currencySymbol || '₹'
       },
+      availableMonths,
+      selectedMonth: requestedMonth,
+      selectedMonthLabel,
       categoryBreakdown,
       chitsList,
       sectionBreakdowns: {
@@ -656,7 +729,7 @@ export class ApiClient {
         },
         salary: {
           monthlyExpected: monthlySalary,
-          actualReceivedThisMonth: thisMonthIncome
+          actualReceivedThisMonth: periodIncome
         },
         commitments: {
           totalMonthlyCommitments,
@@ -672,7 +745,7 @@ export class ApiClient {
         creditCardsCount: accounts.filter((a: any) => a.type === 'credit_card').length,
         moneyLentPending: lending.filter((l: any) => l.type === 'lent' && l.status === 'Pending').length
       },
-      recentTransactions: transactions.slice(0, 8),
+      recentTransactions: (periodTransactions.length > 0 ? periodTransactions : transactions).slice(0, 8),
       upcomingBills: bills.filter((b: any) => b.status !== 'Settled').slice(0, 4)
     };
   }

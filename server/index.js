@@ -363,18 +363,71 @@ app.get('/api/dashboard', async (req, res) => {
       }
     });
 
-    // 6. Today's, Yesterday's & Month's Cash Flow
-    let todayExpense = 0;
-    let yesterdayExpense = 0;
-    let thisMonthExpense = 0;
-    let thisMonthIncome = 0;
-
+    // 6. Today's, Yesterday's & Period Cash Flow (Monthly & All-time scoped)
     const currentMonth = todayStr.substring(0, 7);
     const yesterdayDate = new Date(Date.now() - 86400000).toISOString().split('T')[0];
 
-    // Category breakdown
-    const categoryMap = {};
-    let totalExpenseCategorized = 0;
+    // Collect all available months from transactions
+    const monthsSet = new Set();
+    monthsSet.add(currentMonth);
+    transactions.forEach((tx) => {
+      if (tx.date && typeof tx.date === 'string' && tx.date.length >= 7) {
+        const ym = tx.date.substring(0, 7);
+        if (/^\d{4}-\d{2}$/.test(ym)) {
+          monthsSet.add(ym);
+        }
+      }
+    });
+
+    const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    const monthFullNames = [
+      'January', 'February', 'March', 'April', 'May', 'June',
+      'July', 'August', 'September', 'October', 'November', 'December'
+    ];
+
+    const sortedMonths = Array.from(monthsSet).sort().reverse();
+    const availableMonths = sortedMonths.map((ym) => {
+      const [y, m] = ym.split('-');
+      const mIdx = parseInt(m, 10) - 1;
+      return {
+        value: ym,
+        label: `${monthNames[mIdx] || m} ${y}`,
+        fullName: `${monthFullNames[mIdx] || m} ${y}`,
+        isCurrent: ym === currentMonth
+      };
+    });
+
+    availableMonths.push({
+      value: 'all',
+      label: 'All Time',
+      fullName: 'All Time Cumulative',
+      isCurrent: false
+    });
+
+    // Determine requested month (defaulting to currentMonth)
+    const rawReqMonth = req.query.month ? String(req.query.month).trim() : '';
+    const requestedMonth = rawReqMonth && (rawReqMonth === 'all' || monthsSet.has(rawReqMonth)) ? rawReqMonth : currentMonth;
+
+    let selectedMonthLabel = 'All Time';
+    if (requestedMonth !== 'all') {
+      const [y, m] = requestedMonth.split('-');
+      const mIdx = parseInt(m, 10) - 1;
+      selectedMonthLabel = `${monthFullNames[mIdx] || m} ${y}`;
+    }
+
+    let todayExpense = 0;
+    let yesterdayExpense = 0;
+    let totalExpenseAllTime = 0;
+    let totalIncomeAllTime = 0;
+
+    let periodExpense = 0;
+    let periodIncome = 0;
+    const periodCategoryMap = {};
+    let periodCategoryTotal = 0;
+
+    const periodTransactions = transactions.filter((tx) => {
+      return requestedMonth === 'all' || (tx.date || '').startsWith(requestedMonth);
+    });
 
     transactions.forEach((tx) => {
       const txDate = tx.date || '';
@@ -386,22 +439,31 @@ app.get('/api/dashboard', async (req, res) => {
       if (txDate === yesterdayDate && tx.type === 'debit') {
         yesterdayExpense += amount;
       }
-      if (txDate.startsWith(currentMonth)) {
-        if (tx.type === 'debit') thisMonthExpense += amount;
-        if (tx.type === 'credit') thisMonthIncome += amount;
-      }
       if (tx.type === 'debit') {
-        const cat = tx.category || 'Other Expense';
-        categoryMap[cat] = (categoryMap[cat] || 0) + amount;
-        totalExpenseCategorized += amount;
+        totalExpenseAllTime += amount;
+      }
+      if (tx.type === 'credit') {
+        totalIncomeAllTime += amount;
       }
     });
 
-    const categoryBreakdown = Object.entries(categoryMap)
+    periodTransactions.forEach((tx) => {
+      const amount = Number(tx.amount || 0);
+      if (tx.type === 'debit') {
+        periodExpense += amount;
+        const cat = tx.category || 'Other Expense';
+        periodCategoryMap[cat] = (periodCategoryMap[cat] || 0) + amount;
+        periodCategoryTotal += amount;
+      } else if (tx.type === 'credit') {
+        periodIncome += amount;
+      }
+    });
+
+    const categoryBreakdown = Object.entries(periodCategoryMap)
       .map(([category, amount]) => ({
         category,
         amount,
-        percentage: totalExpenseCategorized > 0 ? Math.round((amount / totalExpenseCategorized) * 100) : 0
+        percentage: periodCategoryTotal > 0 ? Math.round((amount / periodCategoryTotal) * 100) : 0
       }))
       .sort((a, b) => b.amount - a.amount);
 
@@ -423,8 +485,16 @@ app.get('/api/dashboard', async (req, res) => {
     const monthlySalary = Number(profile?.financial?.monthlyIncome || 0);
     const totalMonthlyCommitments = monthlyEmiTotal + monthlyChitsTotal + pendingBillsAmount + totalCreditUsed;
     const remainingDisposable = Math.max(0, monthlySalary - (monthlyEmiTotal + monthlyChitsTotal + pendingBillsAmount));
-    const effectiveMonthlyExpense = totalExpenseCategorized > 0 ? totalExpenseCategorized : thisMonthExpense;
-    const effectiveMonthlyIncome = thisMonthIncome > 0 ? thisMonthIncome : monthlySalary;
+
+    // Dynamic income & expense calculation for selected period
+    let effectiveMonthlyIncome = periodIncome;
+    if (effectiveMonthlyIncome === 0 && requestedMonth !== 'all' && monthlySalary > 0) {
+      effectiveMonthlyIncome = monthlySalary;
+    } else if (effectiveMonthlyIncome === 0 && requestedMonth === 'all' && (monthlySalary > 0 || totalIncomeAllTime > 0)) {
+      effectiveMonthlyIncome = totalIncomeAllTime > 0 ? totalIncomeAllTime : monthlySalary;
+    }
+
+    const effectiveMonthlyExpense = periodExpense;
 
     res.json({
       user: {
@@ -441,11 +511,17 @@ app.get('/api/dashboard', async (req, res) => {
         yesterdayExpense,
         thisMonthIncome: effectiveMonthlyIncome,
         thisMonthExpense: effectiveMonthlyExpense,
-        totalExpenses: totalExpenseCategorized,
+        totalExpenses: totalExpenseAllTime,
+        totalIncome: totalIncomeAllTime,
+        selectedMonth: requestedMonth,
+        selectedMonthLabel,
         monthlyIncome: monthlySalary,
         monthlyBudget: Number(profile?.financial?.monthlyBudget || 0),
         currencySymbol: profile?.financial?.currencySymbol || '₹'
       },
+      availableMonths,
+      selectedMonth: requestedMonth,
+      selectedMonthLabel,
       categoryBreakdown,
       chitsList,
       sectionBreakdowns: {
@@ -498,7 +574,7 @@ app.get('/api/dashboard', async (req, res) => {
         creditCardsCount: accounts.filter((a) => a.type === 'credit_card').length,
         moneyLentPending: lending.filter((l) => l.type === 'lent' && l.status === 'Pending').length
       },
-      recentTransactions: transactions.slice(0, 8),
+      recentTransactions: (periodTransactions.length > 0 ? periodTransactions : transactions).slice(0, 8),
       monthlyCashFlow: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'].map((name, index) => {
         const monthPrefix = `${new Date().getFullYear()}-${String(index + 1).padStart(2, '0')}`;
         let inflow = 0;

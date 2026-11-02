@@ -456,6 +456,7 @@ export const ExpensesView: React.FC = () => {
   const { profile } = useProfile();
   const [expenses, setExpenses] = useState<any[]>([]);
   const [isAddOpen, setIsAddOpen] = useState(false);
+  const [selectedMonth, setSelectedMonth] = useState<string>(() => new Date().toISOString().substring(0, 7));
 
   const loadData = async () => {
     const list = await ApiClient.getTransactions();
@@ -469,15 +470,63 @@ export const ExpensesView: React.FC = () => {
     return () => window.removeEventListener('moneymate_data_changed', handle);
   }, []);
 
+  // Compute available months from expenses list
+  const availableMonths = useMemo(() => {
+    const currentMonth = new Date().toISOString().substring(0, 7);
+    const monthsSet = new Set<string>();
+    monthsSet.add(currentMonth);
+    expenses.forEach((e) => {
+      if (e.date && typeof e.date === 'string' && e.date.length >= 7) {
+        const ym = e.date.substring(0, 7);
+        if (/^\d{4}-\d{2}$/.test(ym)) monthsSet.add(ym);
+      }
+    });
+
+    const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    const monthFullNames = [
+      'January', 'February', 'March', 'April', 'May', 'June',
+      'July', 'August', 'September', 'October', 'November', 'December'
+    ];
+
+    const sorted = Array.from(monthsSet).sort().reverse();
+    const list = sorted.map((ym) => {
+      const [y, m] = ym.split('-');
+      const mIdx = parseInt(m, 10) - 1;
+      return {
+        value: ym,
+        label: `${monthNames[mIdx] || m} ${y}`,
+        fullName: `${monthFullNames[mIdx] || m} ${y}`,
+        isCurrent: ym === currentMonth
+      };
+    });
+
+    list.push({
+      value: 'all',
+      label: 'All Time',
+      fullName: 'All Time Cumulative',
+      isCurrent: false
+    });
+    return list;
+  }, [expenses]);
+
+  const selectedMonthObj = availableMonths.find((m) => m.value === selectedMonth) || availableMonths[0];
+  const selectedLabel = selectedMonth === 'all' ? 'All Time' : selectedMonthObj?.fullName || selectedMonth;
+
+  // Filter expenses by selected period
+  const filteredExpenses = useMemo(() => {
+    if (selectedMonth === 'all') return expenses;
+    return expenses.filter((e) => (e.date || '').startsWith(selectedMonth));
+  }, [expenses, selectedMonth]);
+
   const totalSpent = useMemo(
-    () => expenses.reduce((sum, t) => sum + Number(t.amount || 0), 0),
-    [expenses]
+    () => filteredExpenses.reduce((sum, t) => sum + Number(t.amount || 0), 0),
+    [filteredExpenses]
   );
 
-  // Group by category
+  // Group by category for selected period
   const categorySummary = useMemo(() => {
     const map: { [cat: string]: number } = {};
-    expenses.forEach((e) => {
+    filteredExpenses.forEach((e) => {
       const cat = e.category || 'Other Expense';
       map[cat] = (map[cat] || 0) + Number(e.amount || 0);
     });
@@ -485,10 +534,10 @@ export const ExpensesView: React.FC = () => {
       const percent = totalSpent > 0 ? Math.round((spent / totalSpent) * 100) : 0;
       return { name, spent, percent };
     });
-  }, [expenses, totalSpent]);
+  }, [filteredExpenses, totalSpent]);
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
       <div className="section-top-header">
         <div>
           <h2 className="section-top-title">
@@ -496,7 +545,8 @@ export const ExpensesView: React.FC = () => {
             <span>Monthly Expenses Breakdown</span>
           </h2>
           <p className="section-top-subtitle">
-            Current cumulative spending: <strong style={{ color: '#f43f5e' }}>{formatCurrency(totalSpent, profile.financial?.currency || 'INR')}</strong>
+            {selectedMonth === 'all' ? 'Total cumulative spending' : `Total spending for ${selectedLabel}`}:{' '}
+            <strong style={{ color: '#f43f5e' }}>{formatCurrency(totalSpent, profile.financial?.currency || 'INR')}</strong>
           </p>
         </div>
         <button type="button" className="btn btn-primary" onClick={() => setIsAddOpen(true)}>
@@ -505,11 +555,36 @@ export const ExpensesView: React.FC = () => {
         </button>
       </div>
 
+      {/* Month Statement Period Filter Pill Bar */}
+      <div className="dashboard-month-selector-bar" style={{ margin: '0' }}>
+        <div className="month-selector-label-group">
+          <CalendarIcon size={15} className="month-calendar-icon" />
+          <span className="month-selector-title">Statement Period</span>
+        </div>
+        <div className="month-pills-scroll-container">
+          {availableMonths.map((m) => {
+            const isActive = selectedMonth === m.value;
+            return (
+              <button
+                key={m.value}
+                type="button"
+                className={`month-pill-tab ${isActive ? 'active' : ''}`}
+                onClick={() => setSelectedMonth(m.value)}
+              >
+                {m.isCurrent && <span className="month-pill-dot" />}
+                <span>{m.label}</span>
+                {m.isCurrent && <span className="month-pill-current-tag">Current</span>}
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
       <div className="premium-card">
         <h3 className="card-title" style={{ marginBottom: '16px' }}>Spending by Category</h3>
         {categorySummary.length === 0 ? (
           <div style={{ padding: '24px', textAlign: 'center', color: 'var(--text-muted)' }}>
-            No expenses recorded yet. Click "Record Expense" to add your daily expenses.
+            No expenses recorded for {selectedLabel}. Click "Record Expense" to add your daily expenses.
           </div>
         ) : (
           <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
@@ -532,6 +607,73 @@ export const ExpensesView: React.FC = () => {
                 </div>
               </div>
             ))}
+          </div>
+        )}
+      </div>
+
+      {/* Expense Items for Selected Period */}
+      <div className="premium-card">
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '16px' }}>
+          <h3 className="card-title" style={{ margin: 0 }}>
+            {selectedMonth === 'all' ? 'All Expense Items' : `${selectedLabel} Expense Items`} ({filteredExpenses.length})
+          </h3>
+          <span style={{ fontSize: '0.85rem', fontWeight: 700, color: '#f43f5e' }}>
+            Total: {formatCurrency(totalSpent, profile.financial?.currency || 'INR')}
+          </span>
+        </div>
+
+        {filteredExpenses.length === 0 ? (
+          <div style={{ padding: '24px', textAlign: 'center', color: 'var(--text-muted)' }}>
+            No expense items recorded for {selectedLabel}.
+          </div>
+        ) : (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+            {filteredExpenses.map((tx) => {
+              const iconInfo = getCategoryIconInfo(tx.category, tx.type);
+              return (
+                <div
+                  key={tx.id}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    padding: '12px 16px',
+                    background: 'var(--bg-surface)',
+                    borderRadius: 'var(--radius-sm)',
+                    border: '1px solid var(--border-subtle)'
+                  }}
+                >
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '12px', minWidth: 0, flex: 1 }}>
+                    <div
+                      style={{
+                        width: '38px',
+                        height: '38px',
+                        borderRadius: '10px',
+                        background: iconInfo.bg,
+                        color: iconInfo.color,
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        flexShrink: 0
+                      }}
+                    >
+                      {iconInfo.icon}
+                    </div>
+                    <div style={{ minWidth: 0, flex: 1 }}>
+                      <div style={{ fontWeight: 600, fontSize: '0.92rem', color: 'var(--text-primary)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                        {tx.title}
+                      </div>
+                      <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+                        {tx.category || 'Expense'} • {formatDate(tx.date || new Date().toISOString())}
+                      </div>
+                    </div>
+                  </div>
+                  <div style={{ fontFamily: 'var(--font-display)', fontWeight: 800, color: '#f43f5e', fontSize: '1.05rem', flexShrink: 0 }}>
+                    -{formatCurrency(tx.amount, profile.financial?.currency || 'INR')}
+                  </div>
+                </div>
+              );
+            })}
           </div>
         )}
       </div>
