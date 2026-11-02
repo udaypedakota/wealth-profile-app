@@ -377,8 +377,10 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ onNavigatePage }) 
         ];
   const selectedMonthLabel = data?.selectedMonthLabel || (selectedMonth === 'all' ? 'All Time' : selectedMonth);
   const isUdayUserSession = !currentUser || currentUser?.id === 'user_uday_01' || currentUser?.username?.toLowerCase().includes('uday');
+  const rawFirstName = data?.user?.firstName;
+  const validApiFirstName = rawFirstName && rawFirstName !== 'Member' ? rawFirstName : null;
   const userGreetingName =
-    data?.user?.firstName ||
+    validApiFirstName ||
     currentUser?.fullName?.split(' ')[0] ||
     profile?.personal?.firstName ||
     (isUdayUserSession ? 'Uday' : 'Member');

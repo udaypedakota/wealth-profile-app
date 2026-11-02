@@ -254,6 +254,71 @@
       "date": "2026-10-04",
       "notes": "Monthly hostel rent & food",
       "createdAt": "2026-10-04T09:00:00.000Z"
+    },
+    {
+      "id": "tx_uday_nov_hostel",
+      "userId": "user_uday_01",
+      "title": "Hostel fees",
+      "type": "debit",
+      "amount": 6500,
+      "category": "Other Expense",
+      "account": "Primary Bank Account",
+      "date": "2026-11-01",
+      "notes": "Monthly hostel rent & accommodation",
+      "createdAt": "2026-11-01T08:00:00.000Z",
+      "_id": "6ae8297b4c9c98c88c898712"
+    },
+    {
+      "id": "tx_uday_nov_petrol",
+      "userId": "user_uday_01",
+      "title": "Bike petrol",
+      "type": "debit",
+      "amount": 1000,
+      "category": "Transportation & Fuel",
+      "account": "Cash in Hand (Wallet)",
+      "date": "2026-11-01",
+      "notes": "Monthly bike petrol",
+      "createdAt": "2026-11-01T08:30:00.000Z",
+      "_id": "6ae8297c4c9c98c88c898713"
+    },
+    {
+      "id": "tx_uday_nov_home",
+      "userId": "user_uday_01",
+      "title": "Home (Gas, current, amma medicine bill)",
+      "type": "debit",
+      "amount": 5000,
+      "category": "Medical & Health",
+      "account": "Primary Bank Account",
+      "date": "2026-11-01",
+      "notes": "Gas cylinder, home electricity, and Amma medicines",
+      "createdAt": "2026-11-01T09:00:00.000Z",
+      "_id": "6ae8297c4c9c98c88c898714"
+    },
+    {
+      "id": "tx_uday_nov_recharge",
+      "userId": "user_uday_01",
+      "title": "Recharges mobiles",
+      "type": "debit",
+      "amount": 1000,
+      "category": "Utilities",
+      "account": "Primary Bank Account",
+      "date": "2026-11-01",
+      "notes": "Monthly mobile phone recharges",
+      "createdAt": "2026-11-01T09:30:00.000Z",
+      "_id": "6ae8297c4c9c98c88c898715"
+    },
+    {
+      "id": "tx_uday_nov_dwakra",
+      "userId": "user_uday_01",
+      "title": "Dwakra monthly wise",
+      "type": "debit",
+      "amount": 3100,
+      "category": "Other Expense",
+      "account": "Primary Bank Account",
+      "date": "2026-11-01",
+      "notes": "Dwakra monthly self-help group installment",
+      "createdAt": "2026-11-01T10:00:00.000Z",
+      "_id": "6ae8297c4c9c98c88c898716"
     }
   ],
   "bills": [
