@@ -597,7 +597,7 @@ export class ApiClient {
     const monthlySalary = Number(profile.financial?.monthlyIncome || 0);
     const totalMonthlyCommitments = monthlyEmiTotal + monthlyChitsTotal + pendingBillsAmount + totalCreditUsed;
     const remainingDisposable = Math.max(0, monthlySalary - (monthlyEmiTotal + monthlyChitsTotal + pendingBillsAmount));
-    const effectiveMonthlyExpense = thisMonthExpense > 0 ? thisMonthExpense : totalExpenseCategorized;
+    const effectiveMonthlyExpense = totalExpenseCategorized > 0 ? totalExpenseCategorized : thisMonthExpense;
     const effectiveMonthlyIncome = thisMonthIncome > 0 ? thisMonthIncome : monthlySalary;
 
     return {

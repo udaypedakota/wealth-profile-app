@@ -132,7 +132,18 @@
       "_id": "6aab8027f65768aeee743aad"
     }
   ],
-  "transactions": [],
+  "transactions": [
+    {
+      "id": "item_1793511322156_i5nmo",
+      "userId": "user_uday_01",
+      "title": "Bike service",
+      "type": "debit",
+      "amount": 1810,
+      "category": "Transportation & Fuel",
+      "date": "2026-11-01",
+      "createdAt": "2026-11-01T05:35:22.156Z"
+    }
+  ],
   "bills": [],
   "emis": [],
   "chits": [
